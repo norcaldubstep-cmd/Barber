@@ -179,7 +179,11 @@ export const BarberProfileScreen = ({ route, navigation }: any) => {
         {activeTab === 'portfolio' && (
           <View style={styles.portfolioGrid}>
             {portfolioImages.map((image, index) => (
-              <TouchableOpacity key={index} style={styles.portfolioItem}>
+              <TouchableOpacity
+                key={index}
+                style={styles.portfolioItem}
+                onPress={() => navigation.navigate('Portfolio', { barberName: barber.displayName })}
+              >
                 <Image source={{ uri: image }} style={styles.portfolioImage} />
                 {index % 4 === 0 && (
                   <View style={styles.videoIndicator}>

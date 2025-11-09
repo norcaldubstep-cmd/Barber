@@ -216,7 +216,7 @@ export const BookingsScreen = ({ navigation }: any) => {
           <View style={styles.bookingActions}>
             <Button
               title="Reschedule"
-              onPress={() => console.log('Reschedule')}
+              onPress={() => navigation.navigate('RescheduleBooking', { booking: item })}
               variant="outline"
               size="small"
               style={styles.actionButton}

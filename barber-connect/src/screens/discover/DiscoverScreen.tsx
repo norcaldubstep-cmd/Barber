@@ -273,21 +273,29 @@ export const DiscoverScreen = ({ navigation }: any) => {
             </TouchableOpacity>
           )}
         </View>
-        <TouchableOpacity
-          style={styles.filterButton}
-          onPress={() => setShowFilters(!showFilters)}
-        >
-          <LinearGradient
-            colors={showFilters ? ['#D4AF37', '#FFD700'] : ['transparent', 'transparent']}
-            style={styles.filterGradient}
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => navigation.navigate('MapView')}
           >
-            <Ionicons
-              name="options-outline"
-              size={24}
-              color={showFilters ? '#000' : colors.text.primary}
-            />
-          </LinearGradient>
-        </TouchableOpacity>
+            <Ionicons name="map-outline" size={24} color={colors.text.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.filterButton}
+            onPress={() => navigation.navigate('Filters', { onApplyFilters: setFilters })}
+          >
+            <LinearGradient
+              colors={['transparent', 'transparent']}
+              style={styles.filterGradient}
+            >
+              <Ionicons
+                name="options-outline"
+                size={24}
+                color={colors.text.primary}
+              />
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Location Bar */}
@@ -431,11 +439,24 @@ const styles = StyleSheet.create({
     ...textStyles.body,
     color: colors.text.primary,
   },
+  headerActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  actionButton: {
+    width: 48,
+    height: 48,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.background.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   filterButton: {
     width: 48,
     height: 48,
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
+    backgroundColor: colors.background.secondary,
   },
   filterGradient: {
     flex: 1,
