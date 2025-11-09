@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, Animated } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, Animated, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
-import { colors, spacing, borderRadius, textStyles, shadows } from '../../theme';
+import { colors, spacing, borderRadius, textStyles } from '../../theme';
 import { UserRole } from '../../types/user.types';
 
 interface RoleOption {
@@ -48,33 +48,32 @@ const roleOptions: RoleOption[] = [
       'Get featured & promoted',
     ],
   },
-  {
-    role: UserRole.BUSINESS_OWNER,
-    title: 'Barbershop Owner',
-    subtitle: 'Manage your team and grow your business',
-    icon: 'business-outline',
-    color: colors.accent.red,
-    features: [
-      'Manage multiple barbers',
-      'Post job openings & hire talent',
-      'Offer mentorship programs',
-      'Track business analytics',
-      'Multi-location support',
-      'Promote your brand',
-    ],
-  },
 ];
 
 export const RoleSelectionScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
+  const [isBusinessOwner, setIsBusinessOwner] = useState(false);
   const [scaleAnim] = useState(new Animated.Value(1));
 
   const handleSelectRole = (role: UserRole) => {
     setSelectedRole(role);
+    // Reset business owner if switching to client
+    if (role === UserRole.CLIENT) {
+      setIsBusinessOwner(false);
+    }
     Animated.sequence([
       Animated.timing(scaleAnim, { toValue: 0.95, duration: 100, useNativeDriver: true }),
       Animated.timing(scaleAnim, { toValue: 1, duration: 100, useNativeDriver: true }),
     ]).start();
+  };
+
+  const handleContinue = () => {
+    if (selectedRole) {
+      navigation.navigate('SignUp', {
+        role: selectedRole,
+        isBusinessOwner: isBusinessOwner,
+      });
+    }
   };
 
   return (
@@ -146,6 +145,32 @@ export const RoleSelectionScreen: React.FC<{ navigation: any }> = ({ navigation 
                       </View>
                     )}
                   </Card>
+
+                  {/* Business Owner Option (only for Barbers) */}
+                  {option.role === UserRole.BARBER && isSelected && (
+                    <TouchableOpacity
+                      style={styles.businessOwnerOption}
+                      onPress={() => setIsBusinessOwner(!isBusinessOwner)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.businessOwnerContent}>
+                        <View style={[styles.checkbox, isBusinessOwner && styles.checkboxChecked]}>
+                          {isBusinessOwner && (
+                            <Ionicons name="checkmark" size={18} color="#000" />
+                          )}
+                        </View>
+                        <View style={styles.businessOwnerText}>
+                          <View style={styles.businessOwnerTitleRow}>
+                            <Ionicons name="business" size={20} color={colors.accent.red} />
+                            <Text style={styles.businessOwnerTitle}>I'm also a Business Owner</Text>
+                          </View>
+                          <Text style={styles.businessOwnerSubtitle}>
+                            Manage your shop, hire barbers, and post jobs
+                          </Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  )}
                 </Animated.View>
               );
             })}
@@ -155,7 +180,7 @@ export const RoleSelectionScreen: React.FC<{ navigation: any }> = ({ navigation 
           <View style={styles.footer}>
             <Button
               title="Continue"
-              onPress={() => navigation.navigate('SignUp', { role: selectedRole })}
+              onPress={handleContinue}
               variant="gradient"
               size="large"
               fullWidth
@@ -281,6 +306,50 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  businessOwnerOption: {
+    marginTop: spacing.md,
+    backgroundColor: colors.background.cardDark,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    borderWidth: 2,
+    borderColor: isBusinessOwner => isBusinessOwner ? colors.accent.red : colors.border.light,
+  },
+  businessOwnerContent: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  checkbox: {
+    width: 28,
+    height: 28,
+    borderRadius: borderRadius.sm,
+    borderWidth: 2,
+    borderColor: colors.border.medium,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: colors.accent.gold,
+    borderColor: colors.accent.gold,
+  },
+  businessOwnerText: {
+    flex: 1,
+    gap: spacing.xs,
+  },
+  businessOwnerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  businessOwnerTitle: {
+    ...textStyles.body,
+    fontWeight: '700',
+    color: colors.text.inverse,
+  },
+  businessOwnerSubtitle: {
+    ...textStyles.bodySmall,
+    color: colors.text.secondary,
+    lineHeight: 18,
   },
   footer: {
     gap: spacing.md,
