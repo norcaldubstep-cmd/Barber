@@ -5,13 +5,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, spacing } from '../theme';
 import { DiscoverScreen } from '../screens/discover/DiscoverScreen';
+import { FeedScreen } from '../screens/feed/FeedScreen';
 
 // Placeholder screens - we'll build these next
 import { View as RNView, Text } from 'react-native';
-
-const FeedScreen = () => (
-  <RNView style={styles.screen}><Text style={styles.text}>Feed</Text></RNView>
-);
 
 const CreateScreen = () => (
   <RNView style={styles.screen}><Text style={styles.text}>Create</Text></RNView>
