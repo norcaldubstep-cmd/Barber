@@ -25,72 +25,35 @@ interface SearchResult {
   isFollowing?: boolean;
 }
 
-const MOCK_RECENT_SEARCHES: SearchResult[] = [
-  {
-    id: '1',
-    type: 'user',
-    name: 'Mike Johnson',
-    username: '@mikethebarber',
-    avatar: 'https://i.pravatar.cc/150?img=12',
-    isVerified: true,
-    followersCount: 2453,
-    isFollowing: true,
-  },
-  {
-    id: '2',
-    type: 'hashtag',
-    name: 'fade',
-    postsCount: 12543,
-  },
-  {
-    id: '3',
-    type: 'user',
-    name: 'James Smith',
-    username: '@jamescuts',
-    avatar: 'https://i.pravatar.cc/150?img=13',
-    isVerified: false,
-    followersCount: 1823,
-    isFollowing: false,
-  },
-];
-
-const MOCK_SUGGESTED_USERS: SearchResult[] = [
-  {
-    id: '4',
-    type: 'user',
-    name: 'Sarah Chen',
-    username: '@sarahstyles',
-    avatar: 'https://i.pravatar.cc/150?img=45',
-    isVerified: true,
-    followersCount: 3421,
-    isFollowing: false,
-  },
-  {
-    id: '5',
-    type: 'user',
-    name: 'Marcus Wright',
-    username: '@marcuscuts',
-    avatar: 'https://i.pravatar.cc/150?img=15',
-    isVerified: true,
-    followersCount: 5632,
-    isFollowing: false,
-  },
-];
-
-const TRENDING_HASHTAGS = [
-  { name: 'fade', count: 12543 },
-  { name: 'barberlife', count: 8932 },
-  { name: 'menshair', count: 7821 },
-  { name: 'barbershop', count: 6543 },
-  { name: 'hairstyle', count: 5234 },
-];
-
 export const UserSearchScreen = ({ navigation }: any) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [recentSearches, setRecentSearches] = useState<SearchResult[]>(MOCK_RECENT_SEARCHES);
+  const [recentSearches, setRecentSearches] = useState<SearchResult[]>([]);
+  const [trendingHashtags, setTrendingHashtags] = useState<any[]>([]);
+  const [suggestedUsers, setSuggestedUsers] = useState<SearchResult[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const handleSearch = (query: string) => {
+  // TODO: Fetch trending hashtags and suggested users on mount
+  React.useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        // const [trending, suggested, recent] = await Promise.all([
+        //   fetch('/api/hashtags/trending').then(r => r.json()),
+        //   fetch('/api/users/suggested').then(r => r.json()),
+        //   fetch('/api/users/search/recent').then(r => r.json()),
+        // ]);
+        // setTrendingHashtags(trending);
+        // setSuggestedUsers(suggested);
+        // setRecentSearches(recent);
+      } catch (error) {
+        console.error('Error fetching initial data:', error);
+      }
+    };
+
+    fetchInitialData();
+  }, []);
+
+  const handleSearch = async (query: string) => {
     setSearchQuery(query);
 
     if (query.trim() === '') {
@@ -98,17 +61,17 @@ export const UserSearchScreen = ({ navigation }: any) => {
       return;
     }
 
-    // Mock search results
-    const results = [
-      ...MOCK_SUGGESTED_USERS,
-      ...MOCK_RECENT_SEARCHES,
-    ].filter(
-      (item) =>
-        item.name.toLowerCase().includes(query.toLowerCase()) ||
-        (item.username && item.username.toLowerCase().includes(query.toLowerCase()))
-    );
-
-    setSearchResults(results);
+    // TODO: Call search API
+    setLoading(true);
+    try {
+      // const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+      // const data = await response.json();
+      // setSearchResults(data);
+    } catch (error) {
+      console.error('Error searching:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleFollow = (userId: string) => {
@@ -262,7 +225,7 @@ export const UserSearchScreen = ({ navigation }: any) => {
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Trending Hashtags</Text>
                   <View style={styles.hashtagsGrid}>
-                    {TRENDING_HASHTAGS.map((tag, index) => (
+                    {trendingHashtags.map((tag, index) => (
                       <TouchableOpacity
                         key={index}
                         style={styles.trendingHashtag}

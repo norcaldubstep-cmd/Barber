@@ -23,56 +23,34 @@ interface SavedPost {
   savedAt: Date;
 }
 
-const MOCK_SAVED_POSTS: SavedPost[] = [
-  {
-    id: '1',
-    imageUrl: 'https://picsum.photos/400/600?random=1',
-    authorName: 'Mike Johnson',
-    likesCount: 342,
-    savedAt: new Date(Date.now() - 1000 * 60 * 60 * 2),
-  },
-  {
-    id: '2',
-    imageUrl: 'https://picsum.photos/400/600?random=2',
-    authorName: 'James Smith',
-    likesCount: 287,
-    savedAt: new Date(Date.now() - 1000 * 60 * 60 * 5),
-  },
-  {
-    id: '3',
-    imageUrl: 'https://picsum.photos/400/600?random=3',
-    authorName: 'Sarah Chen',
-    likesCount: 423,
-    savedAt: new Date(Date.now() - 1000 * 60 * 60 * 12),
-  },
-  {
-    id: '4',
-    imageUrl: 'https://picsum.photos/400/600?random=4',
-    authorName: 'Marcus Wright',
-    likesCount: 512,
-    savedAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
-  },
-  {
-    id: '5',
-    imageUrl: 'https://picsum.photos/400/600?random=5',
-    authorName: 'Chris Brown',
-    likesCount: 198,
-    savedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2),
-  },
-  {
-    id: '6',
-    imageUrl: 'https://picsum.photos/400/600?random=6',
-    authorName: 'David Lee',
-    likesCount: 265,
-    savedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3),
-  },
-];
-
 export const SavedPostsScreen = ({ navigation }: any) => {
-  const [savedPosts, setSavedPosts] = useState<SavedPost[]>(MOCK_SAVED_POSTS);
+  const [savedPosts, setSavedPosts] = useState<SavedPost[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'recent' | 'popular'>('all');
+  const [loading, setLoading] = useState(true);
 
-  const handleUnsave = (postId: string) => {
+  // TODO: Fetch saved posts from API
+  React.useEffect(() => {
+    const fetchSavedPosts = async () => {
+      setLoading(true);
+      try {
+        // const response = await fetch('/api/posts/saved');
+        // const data = await response.json();
+        // setSavedPosts(data);
+      } catch (error) {
+        console.error('Error fetching saved posts:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSavedPosts();
+  }, []);
+
+  const handleUnsave = async (postId: string) => {
+    // TODO: Call unsave API
+    // await fetch(`/api/posts/${postId}/unsave`, { method: 'DELETE' });
+
+    // Optimistic update
     setSavedPosts((prev) => prev.filter((post) => post.id !== postId));
   };
 

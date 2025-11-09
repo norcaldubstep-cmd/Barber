@@ -25,53 +25,33 @@ interface User {
   followersCount: number;
 }
 
-const MOCK_FOLLOWERS: User[] = [
-  {
-    id: '1',
-    name: 'Mike Johnson',
-    username: '@miketheb arber',
-    avatar: 'https://i.pravatar.cc/150?img=12',
-    isVerified: true,
-    isFollowing: true,
-    bio: 'Professional Barber | 10+ years',
-    followersCount: 2453,
-  },
-  {
-    id: '2',
-    name: 'James Smith',
-    username: '@jamescuts',
-    avatar: 'https://i.pravatar.cc/150?img=13',
-    isVerified: true,
-    isFollowing: false,
-    bio: 'Master Barber | SF',
-    followersCount: 1823,
-  },
-  {
-    id: '3',
-    name: 'Sarah Chen',
-    username: '@sarahstyles',
-    avatar: 'https://i.pravatar.cc/150?img=45',
-    isVerified: false,
-    isFollowing: true,
-    bio: 'Hair Artist',
-    followersCount: 987,
-  },
-  {
-    id: '4',
-    name: 'Marcus Wright',
-    username: '@marcuscuts',
-    avatar: 'https://i.pravatar.cc/150?img=15',
-    isVerified: true,
-    isFollowing: false,
-    followersCount: 3421,
-  },
-];
-
 export const FollowersScreen = ({ navigation, route }: any) => {
   const { mode = 'followers', userId } = route.params || {};
   const [activeTab, setActiveTab] = useState<'followers' | 'following'>(mode);
   const [searchQuery, setSearchQuery] = useState('');
-  const [users, setUsers] = useState<User[]>(MOCK_FOLLOWERS);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // TODO: Fetch followers/following from API
+  React.useEffect(() => {
+    const fetchUsers = async () => {
+      setLoading(true);
+      try {
+        // const endpoint = activeTab === 'followers'
+        //   ? `/api/users/${userId}/followers`
+        //   : `/api/users/${userId}/following`;
+        // const response = await fetch(endpoint);
+        // const data = await response.json();
+        // setUsers(data);
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, [activeTab, userId]);
 
   const filteredUsers = users.filter(
     (user) =>
@@ -79,7 +59,11 @@ export const FollowersScreen = ({ navigation, route }: any) => {
       user.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleFollow = (userId: string) => {
+  const handleFollow = async (userId: string) => {
+    // TODO: Call follow/unfollow API
+    // const response = await fetch(`/api/users/${userId}/follow`, { method: 'POST' });
+
+    // Optimistic update
     setUsers((prev) =>
       prev.map((user) =>
         user.id === userId ? { ...user, isFollowing: !user.isFollowing } : user

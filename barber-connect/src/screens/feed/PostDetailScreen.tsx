@@ -18,66 +18,33 @@ import { colors, spacing, borderRadius, textStyles } from '../../theme';
 
 const { width } = Dimensions.get('window');
 
-// Mock post data
-const MOCK_POST = {
-  id: '1',
-  authorId: '123',
-  authorName: 'Mike Johnson',
-  authorAvatar: 'https://i.pravatar.cc/150?img=12',
-  isVerified: true,
-  caption: 'Just finished this clean mid fade with a textured top. Client wanted something professional but stylish. What do you think? 💈✨',
-  imageUrl: 'https://picsum.photos/800/1000?random=1',
-  likes: 342,
-  liked: false,
-  commentsCount: 28,
-  timestamp: '2 hours ago',
-  location: 'The Barber Lounge, SF',
-  hashtags: ['fade', 'barberlife', 'menshair', 'barbershop'],
-};
-
-const MOCK_COMMENTS = [
-  {
-    id: '1',
-    user: {
-      id: '1',
-      name: 'John Davis',
-      avatar: 'https://i.pravatar.cc/150?img=33',
-    },
-    text: 'This is fire bro! Love the blend 🔥',
-    timestamp: '1 hour ago',
-    likes: 12,
-    liked: false,
-  },
-  {
-    id: '2',
-    user: {
-      id: '2',
-      name: 'Sarah Chen',
-      avatar: 'https://i.pravatar.cc/150?img=45',
-    },
-    text: 'What guard did you use for the fade?',
-    timestamp: '45 min ago',
-    likes: 5,
-    liked: true,
-  },
-  {
-    id: '3',
-    user: {
-      id: '3',
-      name: 'Marcus Wright',
-      avatar: 'https://i.pravatar.cc/150?img=15',
-    },
-    text: 'Always clean work! Keep it up 👏',
-    timestamp: '30 min ago',
-    likes: 8,
-    liked: false,
-  },
-];
-
 export const PostDetailScreen = ({ navigation, route }: any) => {
   const { postId } = route.params || {};
-  const [post, setPost] = useState(MOCK_POST);
+  const [post, setPost] = useState<any>(null);
+  const [comments, setComments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showShareModal, setShowShareModal] = useState(false);
+
+  // TODO: Fetch post data from API
+  React.useEffect(() => {
+    const fetchPost = async () => {
+      setLoading(true);
+      try {
+        // const response = await fetch(`/api/posts/${postId}`);
+        // const data = await response.json();
+        // setPost(data.post);
+        // setComments(data.comments);
+      } catch (error) {
+        console.error('Error fetching post:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (postId) {
+      fetchPost();
+    }
+  }, [postId]);
 
   const handleLike = (liked: boolean) => {
     setPost((prev) => ({
@@ -87,13 +54,46 @@ export const PostDetailScreen = ({ navigation, route }: any) => {
     }));
   };
 
-  const handleAddComment = (text: string) => {
+  const handleAddComment = async (text: string) => {
+    // TODO: Post comment to API
+    // const response = await fetch(`/api/posts/${postId}/comments`, {
+    //   method: 'POST',
+    //   body: JSON.stringify({ text }),
+    // });
     console.log('New comment:', text);
   };
 
   const handleShare = () => {
     setShowShareModal(true);
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading post...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!post) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Post</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={styles.emptyContainer}>
+          <Ionicons name="alert-circle-outline" size={64} color={colors.text.tertiary} />
+          <Text style={styles.emptyText}>Post not found</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -188,9 +188,12 @@ export const PostDetailScreen = ({ navigation, route }: any) => {
         <View style={styles.commentsContainer}>
           <Text style={styles.commentsTitle}>Comments</Text>
           <CommentsSection
-            comments={MOCK_COMMENTS}
+            comments={comments}
             onAddComment={handleAddComment}
-            onLikeComment={(commentId) => console.log('Like comment:', commentId)}
+            onLikeComment={(commentId) => {
+              // TODO: Like comment API call
+              console.log('Like comment:', commentId);
+            }}
           />
         </View>
       </ScrollView>
@@ -323,5 +326,26 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.md,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    ...textStyles.body,
+    color: colors.text.secondary,
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+    gap: spacing.md,
+  },
+  emptyText: {
+    ...textStyles.h3,
+    color: colors.text.secondary,
+    textAlign: 'center',
   },
 });

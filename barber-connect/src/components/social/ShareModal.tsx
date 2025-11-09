@@ -59,33 +59,6 @@ const SHARE_OPTIONS: ShareOption[] = [
   },
 ];
 
-const SUGGESTED_USERS: User[] = [
-  {
-    id: '1',
-    name: 'Mike Johnson',
-    username: '@mikethebarber',
-    avatar: 'https://i.pravatar.cc/150?img=12',
-  },
-  {
-    id: '2',
-    name: 'James Smith',
-    username: '@jamescuts',
-    avatar: 'https://i.pravatar.cc/150?img=13',
-  },
-  {
-    id: '3',
-    name: 'Sarah Chen',
-    username: '@sarahstyles',
-    avatar: 'https://i.pravatar.cc/150?img=45',
-  },
-  {
-    id: '4',
-    name: 'Marcus Wright',
-    username: '@marcuscuts',
-    avatar: 'https://i.pravatar.cc/150?img=15',
-  },
-];
-
 interface ShareModalProps {
   visible: boolean;
   onClose: () => void;
@@ -100,6 +73,24 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   postUrl = 'https://barberconnect.app/post/123',
 }) => {
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [suggestedUsers, setSuggestedUsers] = useState<User[]>([]);
+
+  // TODO: Fetch suggested users for sharing
+  React.useEffect(() => {
+    if (visible) {
+      const fetchSuggestedUsers = async () => {
+        try {
+          // const response = await fetch('/api/users/suggested-for-sharing');
+          // const data = await response.json();
+          // setSuggestedUsers(data);
+        } catch (error) {
+          console.error('Error fetching suggested users:', error);
+        }
+      };
+
+      fetchSuggestedUsers();
+    }
+  }, [visible]);
 
   const handleShareOption = async (option: ShareOption) => {
     switch (option.type) {
@@ -140,18 +131,28 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     }
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (selectedUsers.length === 0) {
       Alert.alert('Select Users', 'Please select at least one person to send to.');
       return;
     }
 
-    Alert.alert(
-      'Message Sent',
-      `Post shared with ${selectedUsers.length} ${selectedUsers.length === 1 ? 'person' : 'people'}.`
-    );
-    setSelectedUsers([]);
-    onClose();
+    // TODO: Share post via message API
+    try {
+      // await fetch('/api/messages/share', {
+      //   method: 'POST',
+      //   body: JSON.stringify({ postId, userIds: selectedUsers }),
+      // });
+
+      Alert.alert(
+        'Message Sent',
+        `Post shared with ${selectedUsers.length} ${selectedUsers.length === 1 ? 'person' : 'people'}.`
+      );
+      setSelectedUsers([]);
+      onClose();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to share post. Please try again.');
+    }
   };
 
   const renderShareOption = ({ item }: { item: ShareOption }) => (
@@ -237,7 +238,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
           <View style={styles.usersSection}>
             <Text style={styles.sectionTitle}>Send to</Text>
             <FlatList
-              data={SUGGESTED_USERS}
+              data={suggestedUsers}
               renderItem={renderUser}
               keyExtractor={(item) => item.id}
               showsVerticalScrollIndicator={false}
