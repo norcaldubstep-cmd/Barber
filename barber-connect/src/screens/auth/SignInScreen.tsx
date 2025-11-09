@@ -130,7 +130,7 @@ export const SignInScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   <Text style={styles.rememberMeText}>Remember me</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity>
+                <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
                   <Text style={styles.forgotPassword}>Forgot Password?</Text>
                 </TouchableOpacity>
               </View>
