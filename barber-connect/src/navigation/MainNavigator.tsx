@@ -10,12 +10,15 @@ import { BarberTabNavigator } from './BarberNavigator';
 
 // Stack Screens
 import { BarberProfileScreen } from '../screens/profile/BarberProfileScreen';
+import { ProfileScreen } from '../screens/profile/ProfileScreen';
+import { EditProfileScreen } from '../screens/profile/EditProfileScreen';
 import { BookingScreen } from '../screens/booking/BookingScreen';
 import { BookingsScreen } from '../screens/booking/BookingsScreen';
 import { ChatScreen } from '../screens/messages/ChatScreen';
 import { JobBoardScreen } from '../screens/jobs/JobBoardScreen';
 import { ScheduleEditorScreen } from '../screens/barber/ScheduleEditorScreen';
 import { PromotionPlansScreen } from '../screens/barber/PromotionPlansScreen';
+import { ReviewsScreen } from '../screens/barber/ReviewsScreen';
 import { NotificationsScreen } from '../screens/notifications/NotificationsScreen';
 import { FavoritesScreen } from '../screens/discover/FavoritesScreen';
 
@@ -45,7 +48,8 @@ export const MainNavigator = () => {
 
       {/* Profile & Barber Screens */}
       <Stack.Screen name="BarberProfile" component={BarberProfileScreen} />
-      <Stack.Screen name="EditProfile" component={ProfileScreen} />
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+      <Stack.Screen name="Reviews" component={ReviewsScreen} />
 
       {/* Booking Screens */}
       <Stack.Screen name="Booking" component={BookingScreen} />
