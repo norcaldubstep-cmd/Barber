@@ -14,6 +14,7 @@ import { ProfileScreen } from '../screens/profile/ProfileScreen';
 import { EditProfileScreen } from '../screens/profile/EditProfileScreen';
 import { BookingScreen } from '../screens/booking/BookingScreen';
 import { BookingsScreen } from '../screens/booking/BookingsScreen';
+import { RescheduleBookingScreen } from '../screens/booking/RescheduleBookingScreen';
 import { ChatScreen } from '../screens/messages/ChatScreen';
 import { JobBoardScreen } from '../screens/jobs/JobBoardScreen';
 import { ScheduleEditorScreen } from '../screens/barber/ScheduleEditorScreen';
@@ -21,8 +22,11 @@ import { PromotionPlansScreen } from '../screens/barber/PromotionPlansScreen';
 import { ReviewsScreen } from '../screens/barber/ReviewsScreen';
 import { AnalyticsScreen } from '../screens/barber/AnalyticsScreen';
 import { ServicesScreen } from '../screens/barber/ServicesScreen';
+import { PortfolioScreen } from '../screens/barber/PortfolioScreen';
 import { NotificationsScreen } from '../screens/notifications/NotificationsScreen';
 import { FavoritesScreen } from '../screens/discover/FavoritesScreen';
+import { MapViewScreen } from '../screens/discover/MapViewScreen';
+import { FiltersScreen } from '../screens/discover/FiltersScreen';
 import { StoriesScreen } from '../screens/feed/StoriesScreen';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { OnboardingScreen } from '../screens/onboarding/OnboardingScreen';
@@ -62,6 +66,7 @@ export const MainNavigator = () => {
       {/* Booking Screens */}
       <Stack.Screen name="Booking" component={BookingScreen} />
       <Stack.Screen name="Bookings" component={BookingsScreen} />
+      <Stack.Screen name="RescheduleBooking" component={RescheduleBookingScreen} />
 
       {/* Messaging Screens */}
       <Stack.Screen name="Chat" component={ChatScreen} />
@@ -78,11 +83,15 @@ export const MainNavigator = () => {
       <Stack.Screen name="ScheduleEditor" component={ScheduleEditorScreen} />
       <Stack.Screen name="MyServices" component={ServicesScreen} />
       <Stack.Screen name="Analytics" component={AnalyticsScreen} />
-      <Stack.Screen name="Portfolio" component={ProfileScreen} />
+      <Stack.Screen name="Portfolio" component={PortfolioScreen} />
       <Stack.Screen name="PromotionPlans" component={PromotionPlansScreen} />
 
-      {/* Other Screens */}
+      {/* Discovery Screens */}
       <Stack.Screen name="Favorites" component={FavoritesScreen} />
+      <Stack.Screen name="MapView" component={MapViewScreen} />
+      <Stack.Screen name="Filters" component={FiltersScreen} />
+
+      {/* Other Screens */}
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
     </Stack.Navigator>
