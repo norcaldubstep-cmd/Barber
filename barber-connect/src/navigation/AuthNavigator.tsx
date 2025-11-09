@@ -2,32 +2,16 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { WelcomeScreen } from '../screens/auth/WelcomeScreen';
 import { RoleSelectionScreen } from '../screens/auth/RoleSelectionScreen';
+import { SignInScreen } from '../screens/auth/SignInScreen';
+import { SignUpScreen } from '../screens/auth/SignUpScreen';
 import { UserRole } from '../types/user.types';
-
-// Placeholder screens until we build them
-import { View, Text, StyleSheet } from 'react-native';
-import { Button } from '../components/common/Button';
-import { colors, spacing } from '../theme';
-
-const SignInScreen = ({ navigation }: any) => (
-  <View style={styles.placeholder}>
-    <Text style={styles.placeholderText}>Sign In Screen</Text>
-    <Button title="Go to Welcome" onPress={() => navigation.navigate('Welcome')} />
-  </View>
-);
-
-const SignUpScreen = ({ navigation }: any) => (
-  <View style={styles.placeholder}>
-    <Text style={styles.placeholderText}>Sign Up Screen</Text>
-    <Button title="Go Back" onPress={() => navigation.goBack()} />
-  </View>
-);
+import { colors } from '../theme';
 
 export type AuthStackParamList = {
   Welcome: undefined;
   RoleSelection: undefined;
   SignIn: undefined;
-  SignUp: { role: UserRole };
+  SignUp: { role: UserRole; isBusinessOwner: boolean };
 };
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
@@ -49,18 +33,3 @@ export const AuthNavigator = () => {
     </Stack.Navigator>
   );
 };
-
-const styles = StyleSheet.create({
-  placeholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.background.primary,
-    padding: spacing.xl,
-  },
-  placeholderText: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: spacing.lg,
-  },
-});
