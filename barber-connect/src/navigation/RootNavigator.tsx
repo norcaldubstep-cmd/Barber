@@ -1,20 +1,15 @@
 import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/authStore';
-import { colors } from '../theme';
+import { AuthNavigator } from './AuthNavigator';
+import { MainNavigator } from './MainNavigator';
+import { colors, spacing } from '../theme';
 
 const Stack = createNativeStackNavigator();
-
-// Placeholder screens
-const AuthScreen = () => (
-  <View style={styles.centered}><Text>Auth Screen - Coming Soon</Text></View>
-);
-
-const HomeScreen = () => (
-  <View style={styles.centered}><Text>Home Screen - Coming Soon</Text></View>
-);
 
 export const RootNavigator = () => {
   const { isAuthenticated, isLoading, loadStoredAuth } = useAuthStore();
@@ -26,7 +21,20 @@ export const RootNavigator = () => {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.accent.gold} />
+        <LinearGradient
+          colors={['#000000', '#1A1A1A', '#000000']}
+          style={styles.gradient}
+        >
+          <View style={styles.logoContainer}>
+            <LinearGradient
+              colors={['#D4AF37', '#FFD700', '#D4AF37']}
+              style={styles.logo}
+            >
+              <Ionicons name="cut" size={48} color="#000" />
+            </LinearGradient>
+          </View>
+          <ActivityIndicator size="large" color={colors.accent.gold} style={{ marginTop: spacing.xl }} />
+        </LinearGradient>
       </View>
     );
   }
@@ -35,9 +43,9 @@ export const RootNavigator = () => {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {isAuthenticated ? (
-          <Stack.Screen name="Home" component={HomeScreen} />
+          <Stack.Screen name="Main" component={MainNavigator} />
         ) : (
-          <Stack.Screen name="Auth" component={AuthScreen} />
+          <Stack.Screen name="Auth" component={AuthNavigator} />
         )}
       </Stack.Navigator>
     </NavigationContainer>
@@ -45,6 +53,23 @@ export const RootNavigator = () => {
 };
 
 const styles = StyleSheet.create({
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background.primary },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: colors.primary.main,
+  },
+  gradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoContainer: {
+    alignItems: 'center',
+  },
+  logo: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
