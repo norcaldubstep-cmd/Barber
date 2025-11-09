@@ -162,7 +162,7 @@ export const FeedScreen = ({ navigation }: any) => {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.actionButton}
-            onPress={() => navigation.navigate('Comments', { postId: item.id })}
+            onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
           >
             <Ionicons name="chatbubble-outline" size={26} color={colors.text.primary} />
           </TouchableOpacity>
@@ -203,7 +203,7 @@ export const FeedScreen = ({ navigation }: any) => {
         )}
 
         {item.commentsCount > 0 && (
-          <TouchableOpacity onPress={() => navigation.navigate('Comments', { postId: item.id })}>
+          <TouchableOpacity onPress={() => navigation.navigate('PostDetail', { postId: item.id })}>
             <Text style={styles.viewComments}>
               View all {item.commentsCount} comments
             </Text>
@@ -227,14 +227,20 @@ export const FeedScreen = ({ navigation }: any) => {
         </LinearGradient>
         <Text style={styles.headerTitle}>BarberConnect</Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.headerButton}>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => navigation.navigate('Notifications')}
+          >
             <Ionicons name="notifications-outline" size={28} color={colors.text.primary} />
             <View style={styles.notificationBadge}>
               <Text style={styles.notificationText}>3</Text>
             </View>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerButton}>
-            <Ionicons name="chatbubbles-outline" size={28} color={colors.text.primary} />
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => navigation.navigate('UserSearch')}
+          >
+            <Ionicons name="search-outline" size={28} color={colors.text.primary} />
           </TouchableOpacity>
         </View>
       </View>

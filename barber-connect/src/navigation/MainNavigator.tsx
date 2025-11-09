@@ -28,8 +28,12 @@ import { FavoritesScreen } from '../screens/discover/FavoritesScreen';
 import { MapViewScreen } from '../screens/discover/MapViewScreen';
 import { FiltersScreen } from '../screens/discover/FiltersScreen';
 import { StoriesScreen } from '../screens/feed/StoriesScreen';
+import { PostDetailScreen } from '../screens/feed/PostDetailScreen';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { OnboardingScreen } from '../screens/onboarding/OnboardingScreen';
+import { FollowersScreen } from '../screens/social/FollowersScreen';
+import { UserSearchScreen } from '../screens/social/UserSearchScreen';
+import { SavedPostsScreen } from '../screens/social/SavedPostsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -73,6 +77,12 @@ export const MainNavigator = () => {
 
       {/* Feed & Stories */}
       <Stack.Screen name="Stories" component={StoriesScreen} />
+      <Stack.Screen name="PostDetail" component={PostDetailScreen} />
+
+      {/* Social Screens */}
+      <Stack.Screen name="Followers" component={FollowersScreen} />
+      <Stack.Screen name="UserSearch" component={UserSearchScreen} />
+      <Stack.Screen name="SavedPosts" component={SavedPostsScreen} />
 
       {/* Job Board Screens */}
       <Stack.Screen name="JobBoard" component={JobBoardScreen} />
