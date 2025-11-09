@@ -7,23 +7,15 @@ import {
   FlatList,
   TouchableOpacity,
   TextInput,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Avatar } from '../../components/common/Avatar';
 import { Button } from '../../components/common/Button';
 import { colors, spacing, borderRadius, textStyles } from '../../theme';
-
-interface User {
-  id: string;
-  name: string;
-  username: string;
-  avatar: string;
-  isVerified: boolean;
-  isFollowing: boolean;
-  bio?: string;
-  followersCount: number;
-}
+import { getFollowers, getFollowing, toggleFollow } from '../../services/usersService';
+import type { User } from '../../services/usersService';
 
 export const FollowersScreen = ({ navigation, route }: any) => {
   const { mode = 'followers', userId } = route.params || {};
@@ -32,19 +24,17 @@ export const FollowersScreen = ({ navigation, route }: any) => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // TODO: Fetch followers/following from API
   React.useEffect(() => {
     const fetchUsers = async () => {
       setLoading(true);
       try {
-        // const endpoint = activeTab === 'followers'
-        //   ? `/api/users/${userId}/followers`
-        //   : `/api/users/${userId}/following`;
-        // const response = await fetch(endpoint);
-        // const data = await response.json();
-        // setUsers(data);
+        const data = activeTab === 'followers'
+          ? await getFollowers(userId)
+          : await getFollowing(userId);
+        setUsers(data);
       } catch (error) {
         console.error('Error fetching users:', error);
+        Alert.alert('Error', 'Failed to load users. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -55,20 +45,33 @@ export const FollowersScreen = ({ navigation, route }: any) => {
 
   const filteredUsers = users.filter(
     (user) =>
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleFollow = async (userId: string) => {
-    // TODO: Call follow/unfollow API
-    // const response = await fetch(`/api/users/${userId}/follow`, { method: 'POST' });
+  const handleFollow = async (targetUserId: string) => {
+    const user = users.find(u => u.id === targetUserId);
+    if (!user) return;
 
     // Optimistic update
     setUsers((prev) =>
-      prev.map((user) =>
-        user.id === userId ? { ...user, isFollowing: !user.isFollowing } : user
+      prev.map((u) =>
+        u.id === targetUserId ? { ...u, isFollowing: !u.isFollowing } : u
       )
     );
+
+    try {
+      await toggleFollow(targetUserId, user.isFollowing || false);
+    } catch (error) {
+      console.error('Error toggling follow:', error);
+      // Revert on error
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === targetUserId ? { ...u, isFollowing: !u.isFollowing } : u
+        )
+      );
+      Alert.alert('Error', 'Failed to update follow status. Please try again.');
+    }
   };
 
   const renderUser = ({ item }: { item: User }) => (
@@ -79,7 +82,7 @@ export const FollowersScreen = ({ navigation, route }: any) => {
     >
       <Avatar
         imageUrl={item.avatar}
-        name={item.name}
+        name={item.displayName}
         size="lg"
         verified={item.isVerified}
         showGradientBorder={item.isVerified}
@@ -88,7 +91,7 @@ export const FollowersScreen = ({ navigation, route }: any) => {
       <View style={styles.userInfo}>
         <View style={styles.userNameRow}>
           <Text style={styles.userName} numberOfLines={1}>
-            {item.name}
+            {item.displayName}
           </Text>
           {item.isVerified && (
             <Ionicons name="checkmark-circle" size={16} color={colors.accent.blue} />

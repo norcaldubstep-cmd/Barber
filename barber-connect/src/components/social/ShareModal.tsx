@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '../common/Avatar';
 import { colors, spacing, borderRadius, textStyles } from '../../theme';
+import { getSuggestedUsers } from '../../services/usersService';
 
 interface ShareOption {
   id: string;
@@ -75,14 +76,17 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [suggestedUsers, setSuggestedUsers] = useState<User[]>([]);
 
-  // TODO: Fetch suggested users for sharing
   React.useEffect(() => {
     if (visible) {
       const fetchSuggestedUsers = async () => {
         try {
-          // const response = await fetch('/api/users/suggested-for-sharing');
-          // const data = await response.json();
-          // setSuggestedUsers(data);
+          const users = await getSuggestedUsers();
+          setSuggestedUsers(users.map(u => ({
+            id: u.id,
+            name: u.displayName,
+            username: u.username,
+            avatar: u.avatar,
+          })));
         } catch (error) {
           console.error('Error fetching suggested users:', error);
         }

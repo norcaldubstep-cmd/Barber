@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Image,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '../../components/common/Avatar';
@@ -15,27 +16,31 @@ import { LikeButton } from '../../components/social/LikeButton';
 import { CommentButton } from '../../components/social/CommentButton';
 import { CommentsSection } from '../../components/social/CommentsSection';
 import { colors, spacing, borderRadius, textStyles } from '../../theme';
+import { getPostById, getPostComments, addComment, toggleLike, toggleSave } from '../../services/postsService';
+import type { Post, Comment } from '../../services/postsService';
 
 const { width } = Dimensions.get('window');
 
 export const PostDetailScreen = ({ navigation, route }: any) => {
   const { postId } = route.params || {};
-  const [post, setPost] = useState<any>(null);
-  const [comments, setComments] = useState<any[]>([]);
+  const [post, setPost] = useState<Post | null>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showShareModal, setShowShareModal] = useState(false);
 
-  // TODO: Fetch post data from API
   React.useEffect(() => {
     const fetchPost = async () => {
       setLoading(true);
       try {
-        // const response = await fetch(`/api/posts/${postId}`);
-        // const data = await response.json();
-        // setPost(data.post);
-        // setComments(data.comments);
+        const [postData, commentsData] = await Promise.all([
+          getPostById(postId),
+          getPostComments(postId),
+        ]);
+        setPost(postData);
+        setComments(commentsData);
       } catch (error) {
         console.error('Error fetching post:', error);
+        Alert.alert('Error', 'Failed to load post. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -46,21 +51,59 @@ export const PostDetailScreen = ({ navigation, route }: any) => {
     }
   }, [postId]);
 
-  const handleLike = (liked: boolean) => {
-    setPost((prev) => ({
+  const handleLike = async (liked: boolean) => {
+    if (!post) return;
+
+    // Optimistic update
+    setPost((prev) => prev ? ({
       ...prev,
       liked,
-      likes: liked ? prev.likes + 1 : prev.likes - 1,
-    }));
+      likesCount: liked ? prev.likesCount + 1 : prev.likesCount - 1,
+    }) : null);
+
+    try {
+      await toggleLike(postId, !liked);
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      // Revert on error
+      setPost((prev) => prev ? ({
+        ...prev,
+        liked: !liked,
+        likesCount: liked ? prev.likesCount - 1 : prev.likesCount + 1,
+      }) : null);
+      Alert.alert('Error', 'Failed to update like. Please try again.');
+    }
+  };
+
+  const handleSave = async () => {
+    if (!post) return;
+
+    // Optimistic update
+    const newSavedState = !post.saved;
+    setPost((prev) => prev ? ({ ...prev, saved: newSavedState }) : null);
+
+    try {
+      await toggleSave(postId, !newSavedState);
+    } catch (error) {
+      console.error('Error toggling save:', error);
+      // Revert on error
+      setPost((prev) => prev ? ({ ...prev, saved: !newSavedState }) : null);
+      Alert.alert('Error', 'Failed to save post. Please try again.');
+    }
   };
 
   const handleAddComment = async (text: string) => {
-    // TODO: Post comment to API
-    // const response = await fetch(`/api/posts/${postId}/comments`, {
-    //   method: 'POST',
-    //   body: JSON.stringify({ text }),
-    // });
-    console.log('New comment:', text);
+    try {
+      await addComment(postId, text);
+      // Refresh comments
+      const commentsData = await getPostComments(postId);
+      setComments(commentsData);
+      // Update comment count
+      setPost((prev) => prev ? ({ ...prev, commentsCount: prev.commentsCount + 1 }) : null);
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      Alert.alert('Error', 'Failed to add comment. Please try again.');
+    }
   };
 
   const handleShare = () => {
@@ -157,8 +200,12 @@ export const PostDetailScreen = ({ navigation, route }: any) => {
               <Ionicons name="paper-plane-outline" size={26} color={colors.text.secondary} />
             </TouchableOpacity>
           </View>
-          <TouchableOpacity>
-            <Ionicons name="bookmark-outline" size={26} color={colors.text.secondary} />
+          <TouchableOpacity onPress={handleSave}>
+            <Ionicons
+              name={post.saved ? "bookmark" : "bookmark-outline"}
+              size={26}
+              color={post.saved ? colors.accent.gold : colors.text.secondary}
+            />
           </TouchableOpacity>
         </View>
 

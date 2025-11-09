@@ -8,36 +8,30 @@ import {
   TouchableOpacity,
   Image,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius, textStyles } from '../../theme';
+import { getSavedPosts, toggleSave } from '../../services/postsService';
+import type { Post } from '../../services/postsService';
 
 const { width } = Dimensions.get('window');
 const ITEM_SIZE = (width - spacing.lg * 3) / 2;
 
-interface SavedPost {
-  id: string;
-  imageUrl: string;
-  authorName: string;
-  likesCount: number;
-  savedAt: Date;
-}
-
 export const SavedPostsScreen = ({ navigation }: any) => {
-  const [savedPosts, setSavedPosts] = useState<SavedPost[]>([]);
+  const [savedPosts, setSavedPosts] = useState<Post[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'recent' | 'popular'>('all');
   const [loading, setLoading] = useState(true);
 
-  // TODO: Fetch saved posts from API
   React.useEffect(() => {
     const fetchSavedPosts = async () => {
       setLoading(true);
       try {
-        // const response = await fetch('/api/posts/saved');
-        // const data = await response.json();
-        // setSavedPosts(data);
+        const posts = await getSavedPosts();
+        setSavedPosts(posts);
       } catch (error) {
         console.error('Error fetching saved posts:', error);
+        Alert.alert('Error', 'Failed to load saved posts. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -47,17 +41,24 @@ export const SavedPostsScreen = ({ navigation }: any) => {
   }, []);
 
   const handleUnsave = async (postId: string) => {
-    // TODO: Call unsave API
-    // await fetch(`/api/posts/${postId}/unsave`, { method: 'DELETE' });
-
     // Optimistic update
     setSavedPosts((prev) => prev.filter((post) => post.id !== postId));
+
+    try {
+      await toggleSave(postId, true); // true = currently saved, so this will unsave
+    } catch (error) {
+      console.error('Error unsaving post:', error);
+      // Revert on error - would need to refetch to properly restore
+      Alert.alert('Error', 'Failed to unsave post. Please try again.');
+      const posts = await getSavedPosts();
+      setSavedPosts(posts);
+    }
   };
 
   const filteredPosts = savedPosts.filter((post) => {
     if (selectedCategory === 'recent') {
       const dayAgo = Date.now() - 1000 * 60 * 60 * 24;
-      return post.savedAt.getTime() > dayAgo;
+      return post.createdAt.getTime() > dayAgo;
     }
     if (selectedCategory === 'popular') {
       return post.likesCount > 300;
@@ -65,14 +66,14 @@ export const SavedPostsScreen = ({ navigation }: any) => {
     return true;
   });
 
-  const renderPost = ({ item }: { item: SavedPost }) => (
+  const renderPost = ({ item }: { item: Post }) => (
     <TouchableOpacity
       style={styles.postItem}
       onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
       activeOpacity={0.9}
       onLongPress={() => handleUnsave(item.id)}
     >
-      <Image source={{ uri: item.imageUrl }} style={styles.postImage} />
+      <Image source={{ uri: item.imageUrls[0] }} style={styles.postImage} />
       <View style={styles.postOverlay}>
         <View style={styles.postStats}>
           <View style={styles.stat}>

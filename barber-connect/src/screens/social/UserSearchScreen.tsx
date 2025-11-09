@@ -7,44 +7,49 @@ import {
   FlatList,
   TouchableOpacity,
   TextInput,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Avatar } from '../../components/common/Avatar';
 import { colors, spacing, borderRadius, textStyles } from '../../theme';
-
-interface SearchResult {
-  id: string;
-  type: 'user' | 'hashtag';
-  name: string;
-  username?: string;
-  avatar?: string;
-  isVerified?: boolean;
-  followersCount?: number;
-  postsCount?: number;
-  isFollowing?: boolean;
-}
+import {
+  search,
+  getSuggestedUsers,
+  getTrendingHashtags,
+  getRecentSearches,
+  toggleFollow,
+} from '../../services/usersService';
+import type { SearchResult } from '../../services/usersService';
 
 export const UserSearchScreen = ({ navigation }: any) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [recentSearches, setRecentSearches] = useState<SearchResult[]>([]);
-  const [trendingHashtags, setTrendingHashtags] = useState<any[]>([]);
+  const [trendingHashtags, setTrendingHashtags] = useState<Array<{ name: string; count: number }>>([]);
   const [suggestedUsers, setSuggestedUsers] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // TODO: Fetch trending hashtags and suggested users on mount
   React.useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        // const [trending, suggested, recent] = await Promise.all([
-        //   fetch('/api/hashtags/trending').then(r => r.json()),
-        //   fetch('/api/users/suggested').then(r => r.json()),
-        //   fetch('/api/users/search/recent').then(r => r.json()),
-        // ]);
-        // setTrendingHashtags(trending);
-        // setSuggestedUsers(suggested);
-        // setRecentSearches(recent);
+        const [trending, suggested, recent] = await Promise.all([
+          getTrendingHashtags(),
+          getSuggestedUsers(),
+          getRecentSearches(),
+        ]);
+        setTrendingHashtags(trending);
+        setSuggestedUsers(suggested.map(u => ({
+          id: u.id,
+          type: 'user' as const,
+          name: u.displayName,
+          username: u.username,
+          avatar: u.avatar,
+          isVerified: u.isVerified,
+          followersCount: u.followersCount,
+          isFollowing: u.isFollowing,
+        })));
+        setRecentSearches(recent);
       } catch (error) {
         console.error('Error fetching initial data:', error);
       }
@@ -61,20 +66,19 @@ export const UserSearchScreen = ({ navigation }: any) => {
       return;
     }
 
-    // TODO: Call search API
     setLoading(true);
     try {
-      // const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-      // const data = await response.json();
-      // setSearchResults(data);
+      const results = await search(query);
+      setSearchResults(results);
     } catch (error) {
       console.error('Error searching:', error);
+      Alert.alert('Error', 'Failed to search. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleFollow = (userId: string) => {
+  const handleFollow = async (userId: string, currentlyFollowing: boolean) => {
     const updateList = (list: SearchResult[]) =>
       list.map((item) =>
         item.id === userId && item.type === 'user'
@@ -82,8 +86,27 @@ export const UserSearchScreen = ({ navigation }: any) => {
           : item
       );
 
+    // Optimistic update
     setSearchResults(updateList);
     setRecentSearches(updateList);
+    setSuggestedUsers(updateList);
+
+    try {
+      await toggleFollow(userId, currentlyFollowing);
+    } catch (error) {
+      console.error('Error toggling follow:', error);
+      // Revert on error
+      const revertList = (list: SearchResult[]) =>
+        list.map((item) =>
+          item.id === userId && item.type === 'user'
+            ? { ...item, isFollowing: !item.isFollowing }
+            : item
+        );
+      setSearchResults(revertList);
+      setRecentSearches(revertList);
+      setSuggestedUsers(revertList);
+      Alert.alert('Error', 'Failed to update follow status. Please try again.');
+    }
   };
 
   const clearRecentSearches = () => {
@@ -127,7 +150,7 @@ export const UserSearchScreen = ({ navigation }: any) => {
 
       {item.isFollowing !== undefined && (
         <TouchableOpacity
-          onPress={() => handleFollow(item.id)}
+          onPress={() => handleFollow(item.id, item.isFollowing || false)}
           activeOpacity={0.8}
         >
           {item.isFollowing ? (
