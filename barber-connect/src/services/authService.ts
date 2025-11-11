@@ -8,6 +8,9 @@ import {
   sendEmailVerification,
   GoogleAuthProvider,
   signInWithCredential,
+  updatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from './firebase';
@@ -287,6 +290,35 @@ const getAuthErrorMessage = (errorCode: string): string => {
       return 'Network error. Please check your connection';
     default:
       return 'An error occurred. Please try again';
+  }
+};
+
+// Change password (requires re-authentication)
+export const changePassword = async (
+  currentPassword: string,
+  newPassword: string
+): Promise<void> => {
+  try {
+    const currentUser = auth.currentUser;
+    if (!currentUser || !currentUser.email) {
+      throw new Error('No user is currently signed in');
+    }
+
+    // Re-authenticate user before changing password
+    const credential = EmailAuthProvider.credential(
+      currentUser.email,
+      currentPassword
+    );
+    await reauthenticateWithCredential(currentUser, credential);
+
+    // Update password
+    await updatePassword(currentUser, newPassword);
+  } catch (error: any) {
+    console.error('Change password error:', error);
+    if (error.code === 'auth/wrong-password') {
+      throw new Error('Current password is incorrect');
+    }
+    throw new Error(getAuthErrorMessage(error.code));
   }
 };
 

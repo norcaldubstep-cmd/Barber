@@ -145,7 +145,7 @@ export const SettingsScreen = ({ navigation }: any) => {
               icon: 'lock-closed-outline',
               label: 'Change Password',
               subtitle: 'Update your password',
-              onPress: () => console.log('Change password'),
+              onPress: () => navigation.navigate('ChangePassword'),
               showArrow: true,
             })}
             <View style={styles.divider} />

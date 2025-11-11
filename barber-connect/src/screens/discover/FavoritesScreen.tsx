@@ -267,7 +267,7 @@ export const FavoritesScreen = ({ navigation }: any) => {
             style={styles.discoverButton}
           />
         </View>
-      )}
+      ) : null}
     </SafeAreaView>
   );
 };

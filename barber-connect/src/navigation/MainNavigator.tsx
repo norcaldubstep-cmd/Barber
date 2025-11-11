@@ -13,6 +13,7 @@ import { BarberProfileScreen } from '../screens/profile/BarberProfileScreen';
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
 import { EditProfileScreen } from '../screens/profile/EditProfileScreen';
 import { UserProfileViewScreen } from '../screens/profile/UserProfileViewScreen';
+import { ChangePasswordScreen } from '../screens/auth/ChangePasswordScreen';
 import { BookingScreen } from '../screens/booking/BookingScreen';
 import { BookingsScreen } from '../screens/booking/BookingsScreen';
 import { RescheduleBookingScreen } from '../screens/booking/RescheduleBookingScreen';
@@ -67,6 +68,7 @@ export const MainNavigator = () => {
       <Stack.Screen name="BarberProfile" component={BarberProfileScreen} />
       <Stack.Screen name="UserProfileView" component={UserProfileViewScreen} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+      <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
       <Stack.Screen name="Reviews" component={ReviewsScreen} />
 
       {/* Booking Screens */}

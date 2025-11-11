@@ -54,14 +54,14 @@ export const ProfileScreen = ({ navigation }: any) => {
       icon: 'lock-closed-outline',
       label: 'Change Password',
       value: 'Update your password',
-      onPress: () => console.log('Change password'),
+      onPress: () => navigation.navigate('ChangePassword'),
       showArrow: true,
     },
     {
       icon: 'card-outline',
       label: 'Payment Methods',
       value: 'Manage your cards',
-      onPress: () => console.log('Payment methods'),
+      onPress: () => navigation.navigate('Settings'),
       showArrow: true,
     },
   ];
@@ -78,14 +78,14 @@ export const ProfileScreen = ({ navigation }: any) => {
       icon: 'briefcase-outline',
       label: 'My Services',
       value: 'Edit services & pricing',
-      onPress: () => console.log('My services'),
+      onPress: () => navigation.navigate('MyServices'),
       showArrow: true,
     },
     {
       icon: 'images-outline',
       label: 'Portfolio',
       value: 'Manage your work',
-      onPress: () => console.log('Portfolio'),
+      onPress: () => navigation.navigate('Portfolio'),
       showArrow: true,
     },
     {
