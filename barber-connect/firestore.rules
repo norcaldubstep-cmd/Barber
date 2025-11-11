@@ -1,0 +1,169 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isBarber() {
+      return isSignedIn() &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'BARBER';
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
+    }
+
+    // Barbers collection
+    match /barbers/{barberId} {
+      allow read: if true; // Public profiles
+      allow create: if isOwner(barberId);
+      allow update: if isOwner(barberId);
+      allow delete: if isOwner(barberId);
+    }
+
+    // Barber availability
+    match /barberAvailability/{barberId} {
+      allow read: if true; // Public for booking
+      allow write: if isOwner(barberId);
+    }
+
+    // Bookings collection
+    match /bookings/{bookingId} {
+      allow read: if isSignedIn() && (
+        resource.data.clientId == request.auth.uid ||
+        resource.data.barberId == request.auth.uid
+      );
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (
+        resource.data.clientId == request.auth.uid ||
+        resource.data.barberId == request.auth.uid
+      );
+      allow delete: if isSignedIn() && resource.data.clientId == request.auth.uid;
+    }
+
+    // Posts collection
+    match /posts/{postId} {
+      allow read: if true; // Public posts
+      allow create: if isSignedIn();
+      allow update: if isOwner(resource.data.userId);
+      allow delete: if isOwner(resource.data.userId);
+
+      // Likes subcollection
+      match /likes/{likeId} {
+        allow read: if true;
+        allow write: if isSignedIn();
+      }
+
+      // Comments subcollection
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isSignedIn();
+        allow update: if isOwner(resource.data.userId);
+        allow delete: if isOwner(resource.data.userId);
+      }
+    }
+
+    // Saved posts
+    match /savedPosts/{userId}/posts/{postId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Follows collection
+    match /follows/{followId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow delete: if isOwner(resource.data.followerId);
+    }
+
+    // Stories collection
+    match /stories/{storyId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isOwner(resource.data.userId);
+      allow delete: if isOwner(resource.data.userId);
+    }
+
+    // Conversations collection
+    match /conversations/{conversationId} {
+      allow read: if isSignedIn() && request.auth.uid in resource.data.participants;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && request.auth.uid in resource.data.participants;
+      allow delete: if false; // Don't allow deletion
+    }
+
+    // Messages collection
+    match /messages/{messageId} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == resource.data.senderId ||
+        request.auth.uid == resource.data.receiverId
+      );
+      allow create: if isSignedIn() && isOwner(request.resource.data.senderId);
+      allow update: if isSignedIn() && (
+        request.auth.uid == resource.data.senderId ||
+        request.auth.uid == resource.data.receiverId
+      );
+      allow delete: if isOwner(resource.data.senderId);
+    }
+
+    // Notifications collection
+    match /notifications/{notificationId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isSignedIn(); // Any user can create notifications
+      allow update: if isOwner(resource.data.userId);
+      allow delete: if isOwner(resource.data.userId);
+    }
+
+    // Notification preferences
+    match /notificationPreferences/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Reviews collection
+    match /reviews/{reviewId} {
+      allow read: if true; // Public reviews
+      allow create: if isSignedIn();
+      allow update: if isOwner(resource.data.clientId) || isOwner(resource.data.barberId);
+      allow delete: if isOwner(resource.data.clientId);
+    }
+
+    // Barber ratings (calculated data)
+    match /barberRatings/{barberId} {
+      allow read: if true; // Public
+      allow write: if false; // Only updated by Cloud Functions or service
+    }
+
+    // Jobs collection
+    match /jobs/{jobId} {
+      allow read: if true; // Public job listings
+      allow create: if isSignedIn();
+      allow update: if isOwner(resource.data.employerId);
+      allow delete: if isOwner(resource.data.employerId);
+    }
+
+    // Job applications
+    match /jobApplications/{applicationId} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == resource.data.applicantId ||
+        request.auth.uid == resource.data.employerId
+      );
+      allow create: if isSignedIn() && isOwner(request.resource.data.applicantId);
+      allow update: if isSignedIn() && (
+        request.auth.uid == resource.data.applicantId ||
+        request.auth.uid == resource.data.employerId
+      );
+      allow delete: if isOwner(resource.data.applicantId);
+    }
+  }
+}

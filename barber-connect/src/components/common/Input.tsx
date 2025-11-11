@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TextInput, Text, StyleSheet, TouchableOpacity, ViewStyle, TextInputProps, Animated } from 'react-native';
+import { View, TextInput, Text, StyleSheet, TouchableOpacity, ViewStyle, TextInputProps } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius, textStyles } from '../../theme';
 
@@ -27,30 +27,20 @@ export const Input: React.FC<InputProps> = ({
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [animatedValue] = useState(new Animated.Value(0));
 
   const handleFocus = () => {
     setIsFocused(true);
-    Animated.timing(animatedValue, {
-      toValue: 1,
-      duration: 200,
-      useNativeDriver: false,
-    }).start();
   };
 
   const handleBlur = () => {
     setIsFocused(false);
-    Animated.timing(animatedValue, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: false,
-    }).start();
   };
 
-  const borderColor = animatedValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: [error ? colors.error : colors.border.light, error ? colors.error : colors.accent.gold],
-  });
+  const getBorderColor = () => {
+    if (error) return colors.error;
+    if (isFocused) return colors.accent.gold;
+    return colors.border.light;
+  };
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -60,7 +50,7 @@ export const Input: React.FC<InputProps> = ({
           {required && <Text style={styles.required}> *</Text>}
         </Text>
       )}
-      <Animated.View style={[styles.inputContainer, { borderColor }]}>
+      <View style={[styles.inputContainer, { borderColor: getBorderColor() }]}>
         {icon && (
           <Ionicons
             name={icon}
@@ -87,7 +77,7 @@ export const Input: React.FC<InputProps> = ({
           </TouchableOpacity>
         )}
         {rightElement}
-      </Animated.View>
+      </View>
       {(error || helperText) && (
         <Text style={error ? styles.error : styles.helper}>
           {error || helperText}

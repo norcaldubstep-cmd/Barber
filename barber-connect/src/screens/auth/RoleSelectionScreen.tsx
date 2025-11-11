@@ -91,12 +91,7 @@ export const RoleSelectionScreen: React.FC<{ navigation: any }> = ({ navigation 
             {roleOptions.map((option) => {
               const isSelected = selectedRole === option.role;
               return (
-                <Animated.View
-                  key={option.role}
-                  style={[
-                    { transform: [{ scale: isSelected ? scaleAnim : 1 }] },
-                  ]}
-                >
+                <View key={option.role}>
                   <Card
                     variant="elevated"
                     onPress={() => handleSelectRole(option.role)}
@@ -149,7 +144,10 @@ export const RoleSelectionScreen: React.FC<{ navigation: any }> = ({ navigation 
                   {/* Business Owner Option (only for Barbers) */}
                   {option.role === UserRole.BARBER && isSelected && (
                     <TouchableOpacity
-                      style={styles.businessOwnerOption}
+                      style={[
+                        styles.businessOwnerOption,
+                        isBusinessOwner && { borderColor: colors.accent.red }
+                      ]}
                       onPress={() => setIsBusinessOwner(!isBusinessOwner)}
                       activeOpacity={0.7}
                     >
@@ -171,7 +169,7 @@ export const RoleSelectionScreen: React.FC<{ navigation: any }> = ({ navigation 
                       </View>
                     </TouchableOpacity>
                   )}
-                </Animated.View>
+                </View>
               );
             })}
           </View>
@@ -313,7 +311,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     padding: spacing.md,
     borderWidth: 2,
-    borderColor: isBusinessOwner => isBusinessOwner ? colors.accent.red : colors.border.light,
+    borderColor: colors.border.light,
   },
   businessOwnerContent: {
     flexDirection: 'row',
