@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   Image,
   Dimensions,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,19 +18,144 @@ import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { colors, spacing, borderRadius, textStyles, shadows } from '../../theme';
 import { BarberProfile } from '../../types/barber.types';
-import { MOCK_BARBERS } from '../../utils/mockData';
+import { useAuthStore } from '../../store/authStore';
+import { getBarberProfile, getBarberPortfolio } from '../../services/barberService';
+import { getBarberReviews } from '../../services/reviewsService';
+import { getUserFavorites, addFavorite, removeFavorite } from '../../services/usersService';
+import { toggleFollow } from '../../services/usersService';
+import { Review } from '../../types/review.types';
 
 const { width } = Dimensions.get('window');
 const PORTFOLIO_ITEM_SIZE = (width - spacing.lg * 3) / 3;
 
 export const BarberProfileScreen = ({ route, navigation }: any) => {
   const { barberId } = route.params;
-  const barber = MOCK_BARBERS.find((b) => b.id === barberId) || MOCK_BARBERS[0];
+  const { user } = useAuthStore();
+  const isCurrentUser = user?.id === barberId;
 
+  const [barber, setBarber] = useState<BarberProfile | null>(null);
+  const [portfolioImages, setPortfolioImages] = useState<string[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [activeTab, setActiveTab] = useState<'portfolio' | 'services' | 'reviews'>('portfolio');
   const [isFollowing, setIsFollowing] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const portfolioImages = Array(12).fill('https://via.placeholder.com/150');
+  useEffect(() => {
+    loadBarberProfile();
+  }, [barberId]);
+
+  const loadBarberProfile = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Load barber profile
+      const profile = await getBarberProfile(barberId);
+      if (!profile) {
+        setError('Barber not found');
+        setIsLoading(false);
+        return;
+      }
+      setBarber(profile);
+
+      // Load portfolio images
+      const portfolio = await getBarberPortfolio(barberId);
+      setPortfolioImages(portfolio);
+
+      // Load reviews
+      const barberReviews = await getBarberReviews(barberId, 5);
+      setReviews(barberReviews);
+
+      // Check if current user is following this barber
+      if (user) {
+        // Check favorites
+        const favorites = await getUserFavorites(user.id);
+        setIsFavorite(favorites.includes(barberId));
+
+        // Note: Following status is not directly available from current services
+        // We'll need to track this differently or add to barber profile
+        // For now, we'll assume not following
+        setIsFollowing(false);
+      }
+    } catch (err) {
+      console.error('Error loading barber profile:', err);
+      setError('Failed to load barber profile');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFollowToggle = async () => {
+    if (!user) {
+      Alert.alert('Not logged in', 'Please log in to follow barbers');
+      return;
+    }
+
+    try {
+      await toggleFollow(barberId, isFollowing);
+      setIsFollowing(!isFollowing);
+
+      // Update followers count locally
+      if (barber) {
+        setBarber({
+          ...barber,
+          followersCount: barber.followersCount + (isFollowing ? -1 : 1),
+        });
+      }
+    } catch (err) {
+      console.error('Error toggling follow:', err);
+      Alert.alert('Error', 'Failed to update follow status');
+    }
+  };
+
+  const handleFavoriteToggle = async () => {
+    if (!user) {
+      Alert.alert('Not logged in', 'Please log in to favorite barbers');
+      return;
+    }
+
+    try {
+      if (isFavorite) {
+        await removeFavorite(user.id, barberId);
+      } else {
+        await addFavorite(user.id, barberId);
+      }
+      setIsFavorite(!isFavorite);
+    } catch (err) {
+      console.error('Error toggling favorite:', err);
+      Alert.alert('Error', 'Failed to update favorite status');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.accent.gold} />
+          <Text style={styles.loadingText}>Loading profile...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error || !barber) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle" size={64} color={colors.error} />
+          <Text style={styles.errorText}>{error || 'Barber not found'}</Text>
+          <Button
+            title="Go Back"
+            onPress={() => navigation.goBack()}
+            variant="outline"
+            size="large"
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -138,25 +265,48 @@ export const BarberProfileScreen = ({ route, navigation }: any) => {
 
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
-            <Button
-              title="Book Now"
-              onPress={() => navigation.navigate('Booking', { barberId: barber.id })}
-              variant="gradient"
-              size="large"
-              icon="calendar"
-              style={styles.bookButton}
-            />
-            <Button
-              title={isFollowing ? 'Following' : 'Follow'}
-              onPress={() => setIsFollowing(!isFollowing)}
-              variant={isFollowing ? 'secondary' : 'outline'}
-              size="large"
-              icon={isFollowing ? 'checkmark' : 'person-add'}
-              style={styles.followButton}
-            />
-            <TouchableOpacity style={styles.messageButton}>
-              <Ionicons name="chatbubble" size={24} color={colors.text.primary} />
-            </TouchableOpacity>
+            {isCurrentUser ? (
+              <Button
+                title="Edit Profile"
+                onPress={() => navigation.navigate('EditProfile')}
+                variant="gradient"
+                size="large"
+                icon="create"
+                fullWidth
+              />
+            ) : (
+              <>
+                <Button
+                  title="Book Now"
+                  onPress={() => navigation.navigate('Booking', { barberId: barber.id })}
+                  variant="gradient"
+                  size="large"
+                  icon="calendar"
+                  style={styles.bookButton}
+                />
+                <Button
+                  title={isFollowing ? 'Following' : 'Follow'}
+                  onPress={handleFollowToggle}
+                  variant={isFollowing ? 'secondary' : 'outline'}
+                  size="large"
+                  icon={isFollowing ? 'checkmark' : 'person-add'}
+                  style={styles.followButton}
+                />
+                <TouchableOpacity
+                  style={styles.messageButton}
+                  onPress={() => navigation.navigate('Messages', { barberId: barber.id })}
+                >
+                  <Ionicons name="chatbubble" size={24} color={colors.text.primary} />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.favoriteButton} onPress={handleFavoriteToggle}>
+                  <Ionicons
+                    name={isFavorite ? 'heart' : 'heart-outline'}
+                    size={24}
+                    color={isFavorite ? colors.error : colors.text.primary}
+                  />
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         </View>
 
@@ -178,20 +328,22 @@ export const BarberProfileScreen = ({ route, navigation }: any) => {
         {/* Tab Content */}
         {activeTab === 'portfolio' && (
           <View style={styles.portfolioGrid}>
-            {portfolioImages.map((image, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.portfolioItem}
-                onPress={() => navigation.navigate('Portfolio', { barberName: barber.displayName })}
-              >
-                <Image source={{ uri: image }} style={styles.portfolioImage} />
-                {index % 4 === 0 && (
-                  <View style={styles.videoIndicator}>
-                    <Ionicons name="play" size={16} color="#FFF" />
-                  </View>
-                )}
-              </TouchableOpacity>
-            ))}
+            {portfolioImages.length > 0 ? (
+              portfolioImages.map((image, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.portfolioItem}
+                  onPress={() => navigation.navigate('Portfolio', { barberName: barber.displayName })}
+                >
+                  <Image source={{ uri: image }} style={styles.portfolioImage} />
+                </TouchableOpacity>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Ionicons name="images-outline" size={48} color={colors.text.secondary} />
+                <Text style={styles.emptyStateText}>No portfolio images yet</Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -227,7 +379,7 @@ export const BarberProfileScreen = ({ route, navigation }: any) => {
         {activeTab === 'reviews' && (
           <View style={styles.reviewsContainer}>
             <View style={styles.ratingOverview}>
-              <Text style={styles.ratingValue}>{barber.rating}</Text>
+              <Text style={styles.ratingValue}>{barber.rating.toFixed(1)}</Text>
               <View style={styles.ratingStars}>
                 {[1, 2, 3, 4, 5].map((star) => (
                   <Ionicons
@@ -239,34 +391,51 @@ export const BarberProfileScreen = ({ route, navigation }: any) => {
                 ))}
               </View>
               <Text style={styles.ratingCount}>{barber.totalReviews} reviews</Text>
+              <TouchableOpacity
+                style={styles.viewAllButton}
+                onPress={() => navigation.navigate('Reviews', { barberId: barber.id })}
+              >
+                <Text style={styles.viewAllText}>View All Reviews</Text>
+              </TouchableOpacity>
             </View>
 
-            {/* Mock Reviews */}
-            {[1, 2, 3].map((review) => (
-              <Card key={review} style={styles.reviewCard}>
-                <View style={styles.reviewHeader}>
-                  <Avatar name={`Client ${review}`} size="sm" />
-                  <View style={styles.reviewAuthor}>
-                    <Text style={styles.reviewName}>Client {review}</Text>
-                    <View style={styles.reviewStars}>
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <Ionicons
-                          key={star}
-                          name="star"
-                          size={12}
-                          color={colors.accent.gold}
-                        />
-                      ))}
+            {reviews.length > 0 ? (
+              reviews.map((review) => (
+                <Card key={review.id} style={styles.reviewCard}>
+                  <View style={styles.reviewHeader}>
+                    <Avatar name={review.clientName} size="sm" />
+                    <View style={styles.reviewAuthor}>
+                      <Text style={styles.reviewName}>{review.clientName}</Text>
+                      <View style={styles.reviewStars}>
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Ionicons
+                            key={star}
+                            name="star"
+                            size={12}
+                            color={star <= review.rating ? colors.accent.gold : colors.border.light}
+                          />
+                        ))}
+                      </View>
                     </View>
+                    <Text style={styles.reviewDate}>
+                      {new Date(review.createdAt).toLocaleDateString()}
+                    </Text>
                   </View>
-                  <Text style={styles.reviewDate}>2 days ago</Text>
-                </View>
-                <Text style={styles.reviewText}>
-                  Amazing cut! Best barber in the city. The fade was perfect and the service was
-                  top-notch. Highly recommend!
-                </Text>
-              </Card>
-            ))}
+                  <Text style={styles.reviewText}>{review.comment}</Text>
+                  {review.isVerified && (
+                    <View style={styles.verifiedBadge}>
+                      <Ionicons name="checkmark-circle" size={14} color={colors.success} />
+                      <Text style={styles.verifiedText}>Verified Booking</Text>
+                    </View>
+                  )}
+                </Card>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Ionicons name="chatbox-outline" size={48} color={colors.text.secondary} />
+                <Text style={styles.emptyStateText}>No reviews yet</Text>
+              </View>
+            )}
           </View>
         )}
       </ScrollView>
@@ -276,6 +445,28 @@ export const BarberProfileScreen = ({ route, navigation }: any) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background.primary },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  loadingText: {
+    ...textStyles.body,
+    color: colors.text.secondary,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.lg,
+    padding: spacing.xl,
+  },
+  errorText: {
+    ...textStyles.h3,
+    color: colors.text.secondary,
+    textAlign: 'center',
+  },
   header: {
     position: 'absolute',
     top: 0,
@@ -350,6 +541,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  favoriteButton: {
+    width: 52,
+    height: 52,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.background.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   tabs: {
     flexDirection: 'row',
     borderBottomWidth: 1,
@@ -395,4 +594,35 @@ const styles = StyleSheet.create({
   reviewStars: { flexDirection: 'row', gap: 2, marginTop: 2 },
   reviewDate: { ...textStyles.caption, color: colors.text.secondary },
   reviewText: { ...textStyles.bodySmall, lineHeight: 18 },
+  verifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: spacing.sm,
+  },
+  verifiedText: {
+    ...textStyles.caption,
+    color: colors.success,
+    fontWeight: '600',
+  },
+  viewAllButton: {
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  viewAllText: {
+    ...textStyles.body,
+    color: colors.accent.gold,
+    fontWeight: '600',
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+    gap: spacing.md,
+  },
+  emptyStateText: {
+    ...textStyles.body,
+    color: colors.text.secondary,
+  },
 });

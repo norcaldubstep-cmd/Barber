@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,24 +19,67 @@ import { Card } from '../../components/common/Card';
 import { colors, spacing, borderRadius, textStyles } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
 import { UserRole } from '../../types/user.types';
+import { getUser, updateUser } from '../../services/usersService';
+import { getBarberProfile, updateBarberProfile } from '../../services/barberService';
 
 export const EditProfileScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
   const isBarber = user?.role === UserRole.BARBER;
 
-  const [firstName, setFirstName] = useState(user?.firstName || '');
-  const [lastName, setLastName] = useState(user?.lastName || '');
-  const [email, setEmail] = useState(user?.email || '');
-  const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || '');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
   const [worksAt, setWorksAt] = useState('');
   const [yearsExperience, setYearsExperience] = useState('');
   const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [avatar, setAvatar] = useState<string | null>(null);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    loadProfileData();
+  }, []);
+
+  const loadProfileData = async () => {
+    if (!user) {
+      setIsLoadingProfile(false);
+      return;
+    }
+
+    try {
+      setIsLoadingProfile(true);
+
+      if (isBarber) {
+        // Load barber profile
+        const barberProfile = await getBarberProfile(user.id);
+        if (barberProfile) {
+          setDisplayName(barberProfile.displayName || '');
+          setBio(barberProfile.bio || '');
+          setWorksAt(barberProfile.worksAt || '');
+          setYearsExperience(barberProfile.yearsOfExperience?.toString() || '');
+          setSelectedSpecialties(barberProfile.specialties || []);
+          setAvatar(barberProfile.profileImage || null);
+        }
+      }
+
+      // Load basic user info (both clients and barbers have this)
+      setFirstName(user.firstName || '');
+      setLastName(user.lastName || '');
+      setEmail(user.email || '');
+      setPhoneNumber(user.phoneNumber || '');
+    } catch (error) {
+      console.error('Error loading profile:', error);
+      Alert.alert('Error', 'Failed to load profile data');
+    } finally {
+      setIsLoadingProfile(false);
+    }
+  };
 
   const SPECIALTIES = [
     'Fades', 'Tapers', 'Buzz Cuts', 'Crew Cuts', 'Undercuts',
@@ -100,25 +144,60 @@ export const EditProfileScreen = ({ navigation }: any) => {
   };
 
   const handleSave = async () => {
+    if (!user) {
+      Alert.alert('Error', 'Not logged in');
+      return;
+    }
+
     if (!validateForm()) {
       Alert.alert('Validation Error', 'Please fix the errors before saving');
       return;
     }
 
-    setIsLoading(true);
+    setIsSaving(true);
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Update basic user info (for both clients and barbers)
+      await updateUser(user.id, {
+        firstName,
+        lastName,
+        email,
+        phoneNumber,
+      });
+
+      // Update barber-specific info
+      if (isBarber) {
+        await updateBarberProfile(user.id, {
+          displayName,
+          bio,
+          worksAt,
+          yearsOfExperience: yearsExperience ? parseInt(yearsExperience) : 0,
+          specialties: selectedSpecialties,
+          // Note: Image upload will be added later
+          // profileImage: avatar,
+        });
+      }
 
       Alert.alert('Success', 'Your profile has been updated!', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (error) {
+      console.error('Error updating profile:', error);
       Alert.alert('Error', 'Failed to update profile. Please try again.');
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
+
+  if (isLoadingProfile) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.accent.gold} />
+          <Text style={styles.loadingText}>Loading profile...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -314,7 +393,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
           variant="gradient"
           size="large"
           fullWidth
-          isLoading={isLoading}
+          isLoading={isSaving}
           icon="checkmark"
         />
       </View>
@@ -324,6 +403,16 @@ export const EditProfileScreen = ({ navigation }: any) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background.primary },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  loadingText: {
+    ...textStyles.body,
+    color: colors.text.secondary,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
