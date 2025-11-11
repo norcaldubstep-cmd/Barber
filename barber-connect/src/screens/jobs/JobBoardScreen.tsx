@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,9 @@ import {
   ScrollView,
   TouchableOpacity,
   FlatList,
+  ActivityIndicator,
+  RefreshControl,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,153 +17,155 @@ import { Avatar } from '../../components/common/Avatar';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { colors, spacing, borderRadius, textStyles, shadows } from '../../theme';
-
-type JobType = 'FULL_TIME' | 'PART_TIME' | 'CONTRACT' | 'APPRENTICESHIP';
-type ExperienceLevel = 'ENTRY' | 'INTERMEDIATE' | 'EXPERT';
-
-interface Job {
-  id: string;
-  businessName: string;
-  businessLogo?: string;
-  isVerified: boolean;
-  title: string;
-  type: JobType;
-  experienceLevel: ExperienceLevel;
-  location: {
-    city: string;
-    state: string;
-  };
-  salary: {
-    min: number;
-    max: number;
-    type: 'hourly' | 'yearly' | 'commission';
-  };
-  description: string;
-  requirements: string[];
-  benefits: string[];
-  postedAt: Date;
-  applicants: number;
-  isFeatured?: boolean;
-}
-
-const MOCK_JOBS: Job[] = [
-  {
-    id: '1',
-    businessName: 'Elite Cuts Studio',
-    isVerified: true,
-    title: 'Senior Barber - Full Time',
-    type: 'FULL_TIME',
-    experienceLevel: 'EXPERT',
-    location: { city: 'San Francisco', state: 'CA' },
-    salary: { min: 60000, max: 85000, type: 'yearly' },
-    description:
-      'We are looking for an experienced barber to join our elite team. You will work with high-end clientele and have access to premium products and tools.',
-    requirements: [
-      '5+ years of professional experience',
-      'Expert in fades and modern cuts',
-      'Strong client communication skills',
-      'Valid barbering license',
-    ],
-    benefits: [
-      'Health insurance',
-      'Paid time off',
-      'Commission on products',
-      'Continuing education',
-    ],
-    postedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2),
-    applicants: 12,
-    isFeatured: true,
-  },
-  {
-    id: '2',
-    businessName: 'Fresh Fade Barbershop',
-    isVerified: true,
-    title: 'Barber Apprenticeship Program',
-    type: 'APPRENTICESHIP',
-    experienceLevel: 'ENTRY',
-    location: { city: 'Los Angeles', state: 'CA' },
-    salary: { min: 18, max: 25, type: 'hourly' },
-    description:
-      'Join our renowned apprenticeship program and learn from master barbers. Perfect for those starting their barbering journey.',
-    requirements: [
-      'Passion for barbering',
-      'Willingness to learn',
-      'Good attitude and work ethic',
-      'Basic knowledge preferred',
-    ],
-    benefits: [
-      'Hands-on training',
-      'Mentorship program',
-      'Flexible schedule',
-      'Tool discounts',
-    ],
-    postedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5),
-    applicants: 28,
-  },
-  {
-    id: '3',
-    businessName: 'Downtown Barber Co.',
-    isVerified: false,
-    title: 'Weekend Barber',
-    type: 'PART_TIME',
-    experienceLevel: 'INTERMEDIATE',
-    location: { city: 'San Diego', state: 'CA' },
-    salary: { min: 25, max: 40, type: 'hourly' },
-    description:
-      'Seeking a skilled barber for weekend coverage. Great for those looking for flexible part-time work.',
-    requirements: [
-      '2+ years of experience',
-      'Available Saturdays and Sundays',
-      'Professional demeanor',
-      'Valid license',
-    ],
-    benefits: ['Competitive hourly rate', 'Tips', 'Flexible hours'],
-    postedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7),
-    applicants: 8,
-  },
-];
+import { useAuthStore } from '../../store/authStore';
+import {
+  getJobListings,
+  submitJobApplication,
+  getUserApplications,
+} from '../../services/jobsService';
+import { JobListing, JobType, JobStatus, JobApplication } from '../../types/job.types';
 
 export const JobBoardScreen = ({ navigation }: any) => {
+  const { user } = useAuthStore();
   const [selectedFilter, setSelectedFilter] = useState<'all' | JobType>('all');
-  const [jobs, setJobs] = useState<Job[]>(MOCK_JOBS);
+  const [jobs, setJobs] = useState<JobListing[]>([]);
+  const [userApplications, setUserApplications] = useState<JobApplication[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const jobTypeLabels: Record<JobType, string> = {
-    FULL_TIME: 'Full Time',
-    PART_TIME: 'Part Time',
-    CONTRACT: 'Contract',
-    APPRENTICESHIP: 'Apprenticeship',
-  };
-
-  const experienceLevelLabels: Record<ExperienceLevel, string> = {
-    ENTRY: 'Entry Level',
-    INTERMEDIATE: 'Intermediate',
-    EXPERT: 'Expert',
+    [JobType.FULL_TIME]: 'Full Time',
+    [JobType.PART_TIME]: 'Part Time',
+    [JobType.CONTRACT]: 'Contract',
+    [JobType.FREELANCE]: 'Freelance',
+    [JobType.BOOTH_RENTAL]: 'Booth Rental',
   };
 
   const filters: Array<{ key: 'all' | JobType; label: string }> = [
     { key: 'all', label: 'All Jobs' },
-    { key: 'FULL_TIME', label: 'Full Time' },
-    { key: 'PART_TIME', label: 'Part Time' },
-    { key: 'APPRENTICESHIP', label: 'Apprentice' },
+    { key: JobType.FULL_TIME, label: 'Full Time' },
+    { key: JobType.PART_TIME, label: 'Part Time' },
+    { key: JobType.CONTRACT, label: 'Contract' },
+    { key: JobType.BOOTH_RENTAL, label: 'Booth Rental' },
   ];
 
-  const formatSalary = (salary: Job['salary']): string => {
+  // Load jobs and user applications
+  useEffect(() => {
+    loadJobs();
+    if (user?.id) {
+      loadUserApplications();
+    }
+  }, [selectedFilter, user?.id]);
+
+  const loadJobs = async () => {
+    try {
+      setLoading(true);
+      const filters = selectedFilter === 'all'
+        ? { status: JobStatus.OPEN }
+        : { type: selectedFilter, status: JobStatus.OPEN };
+      const jobListings = await getJobListings(filters, 50);
+      setJobs(jobListings);
+    } catch (error) {
+      console.error('Error loading jobs:', error);
+      Alert.alert('Error', 'Failed to load jobs');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const loadUserApplications = async () => {
+    if (!user?.id) return;
+    try {
+      const applications = await getUserApplications(user.id);
+      setUserApplications(applications);
+    } catch (error) {
+      console.error('Error loading applications:', error);
+    }
+  };
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadJobs();
+    loadUserApplications();
+  };
+
+  const handleApplyToJob = async (job: JobListing) => {
+    if (!user?.id || !user.email) {
+      Alert.alert('Error', 'You must be logged in to apply');
+      return;
+    }
+
+    // Check if already applied
+    const alreadyApplied = userApplications.some(app => app.jobId === job.id);
+    if (alreadyApplied) {
+      Alert.alert('Already Applied', 'You have already applied to this job');
+      return;
+    }
+
+    Alert.alert(
+      'Apply to Job',
+      `Apply for ${job.title} at ${job.businessName}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Apply',
+          onPress: async () => {
+            try {
+              await submitJobApplication(
+                job.id,
+                job.title,
+                user.id,
+                user.name || 'Anonymous',
+                user.email,
+                job.employerId,
+                {
+                  applicantAvatar: user.profileImage,
+                  phoneNumber: user.phone,
+                }
+              );
+              Alert.alert('Success', 'Your application has been submitted!');
+              loadUserApplications();
+            } catch (error) {
+              console.error('Error applying to job:', error);
+              Alert.alert('Error', 'Failed to submit application');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const hasApplied = (jobId: string): boolean => {
+    return userApplications.some(app => app.jobId === jobId);
+  };
+
+  const formatSalary = (job: JobListing): string => {
     const formatter = new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 0,
     });
 
-    if (salary.type === 'hourly') {
-      return `${formatter.format(salary.min)}-${formatter.format(salary.max)}/hr`;
-    } else if (salary.type === 'yearly') {
-      return `${formatter.format(salary.min)}-${formatter.format(salary.max)}/yr`;
-    } else {
-      return 'Commission-based';
+    if (job.type === JobType.BOOTH_RENTAL && job.boothRentalCost) {
+      return `${formatter.format(job.boothRentalCost)}/month`;
     }
+
+    if (!job.salaryMin || !job.salaryMax) {
+      return 'Salary negotiable';
+    }
+
+    const suffix = job.salaryType === 'hourly' ? '/hr'
+      : job.salaryType === 'weekly' ? '/wk'
+      : job.salaryType === 'monthly' ? '/mo'
+      : job.salaryType === 'yearly' ? '/yr'
+      : '';
+
+    return `${formatter.format(job.salaryMin)}-${formatter.format(job.salaryMax)}${suffix}`;
   };
 
-  const formatPostedTime = (date: Date): string => {
+  const formatPostedTime = (dateString: string): string => {
+    const date = new Date(dateString);
     const diffInDays = Math.floor(
       (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24)
     );
@@ -171,84 +176,87 @@ export const JobBoardScreen = ({ navigation }: any) => {
     return `${Math.floor(diffInDays / 30)} months ago`;
   };
 
-  const filteredJobs =
-    selectedFilter === 'all'
-      ? jobs
-      : jobs.filter((job) => job.type === selectedFilter);
+  const renderJob = ({ item }: { item: JobListing }) => {
+    const applied = hasApplied(item.id);
 
-  const renderJob = ({ item }: { item: Job }) => (
-    <TouchableOpacity
-      activeOpacity={0.9}
-      onPress={() => navigation.navigate('JobDetails', { jobId: item.id })}
-    >
-      <Card style={[styles.jobCard, item.isFeatured && styles.featuredJobCard]}>
-        {item.isFeatured && (
-          <View style={styles.featuredBadge}>
-            <LinearGradient colors={['#D4AF37', '#FFD700']} style={styles.featuredGradient}>
-              <Ionicons name="star" size={12} color="#000" />
-              <Text style={styles.featuredText}>FEATURED</Text>
-            </LinearGradient>
-          </View>
-        )}
-
-        <View style={styles.jobHeader}>
-          <Avatar
-            name={item.businessName}
-            size="lg"
-            verified={item.isVerified}
-            showGradientBorder={item.isFeatured}
-          />
-          <View style={styles.jobHeaderText}>
-            <Text style={styles.businessName} numberOfLines={1}>
-              {item.businessName}
-            </Text>
-            <View style={styles.locationRow}>
-              <Ionicons name="location" size={14} color={colors.text.secondary} />
-              <Text style={styles.locationText}>
-                {item.location.city}, {item.location.state}
+    return (
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => navigation.navigate('JobDetails', { jobId: item.id })}
+      >
+        <Card style={styles.jobCard}>
+          <View style={styles.jobHeader}>
+            <Avatar
+              name={item.businessName}
+              imageUrl={item.employerAvatar}
+              size="lg"
+            />
+            <View style={styles.jobHeaderText}>
+              <Text style={styles.businessName} numberOfLines={1}>
+                {item.businessName}
               </Text>
+              <View style={styles.locationRow}>
+                <Ionicons name="location" size={14} color={colors.text.secondary} />
+                <Text style={styles.locationText}>
+                  {item.location.city}, {item.location.state}
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.applyButton}
+              onPress={() => handleApplyToJob(item)}
+              disabled={applied}
+            >
+              {applied ? (
+                <View style={styles.appliedBadge}>
+                  <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+                </View>
+              ) : (
+                <Ionicons name="add-circle-outline" size={24} color={colors.accent.gold} />
+              )}
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.jobTitle}>{item.title}</Text>
+
+          <View style={styles.jobMetaRow}>
+            <View style={styles.jobMetaTag}>
+              <Ionicons name="briefcase-outline" size={14} color={colors.accent.gold} />
+              <Text style={styles.jobMetaText}>{jobTypeLabels[item.type]}</Text>
+            </View>
+            {item.yearsExperienceRequired && (
+              <View style={styles.jobMetaTag}>
+                <Ionicons name="bar-chart-outline" size={14} color={colors.accent.blue} />
+                <Text style={styles.jobMetaText}>
+                  {item.yearsExperienceRequired}+ years exp
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <Text style={styles.jobDescription} numberOfLines={2}>
+            {item.description}
+          </Text>
+
+          <View style={styles.jobFooter}>
+            <View style={styles.salaryContainer}>
+              <Text style={styles.salaryLabel}>
+                {item.type === JobType.BOOTH_RENTAL ? 'Booth Rental' : 'Salary'}
+              </Text>
+              <Text style={styles.salaryValue}>{formatSalary(item)}</Text>
+            </View>
+            <View style={styles.jobFooterRight}>
+              <Text style={styles.postedTime}>{formatPostedTime(item.createdAt)}</Text>
+              <View style={styles.applicantsContainer}>
+                <Ionicons name="people" size={14} color={colors.text.secondary} />
+                <Text style={styles.applicantsText}>{item.applicationCount} applicants</Text>
+              </View>
             </View>
           </View>
-          <TouchableOpacity style={styles.saveButton}>
-            <Ionicons name="bookmark-outline" size={24} color={colors.text.primary} />
-          </TouchableOpacity>
-        </View>
-
-        <Text style={styles.jobTitle}>{item.title}</Text>
-
-        <View style={styles.jobMetaRow}>
-          <View style={styles.jobMetaTag}>
-            <Ionicons name="briefcase-outline" size={14} color={colors.accent.gold} />
-            <Text style={styles.jobMetaText}>{jobTypeLabels[item.type]}</Text>
-          </View>
-          <View style={styles.jobMetaTag}>
-            <Ionicons name="bar-chart-outline" size={14} color={colors.accent.blue} />
-            <Text style={styles.jobMetaText}>
-              {experienceLevelLabels[item.experienceLevel]}
-            </Text>
-          </View>
-        </View>
-
-        <Text style={styles.jobDescription} numberOfLines={2}>
-          {item.description}
-        </Text>
-
-        <View style={styles.jobFooter}>
-          <View style={styles.salaryContainer}>
-            <Text style={styles.salaryLabel}>Salary</Text>
-            <Text style={styles.salaryValue}>{formatSalary(item.salary)}</Text>
-          </View>
-          <View style={styles.jobFooterRight}>
-            <Text style={styles.postedTime}>{formatPostedTime(item.postedAt)}</Text>
-            <View style={styles.applicantsContainer}>
-              <Ionicons name="people" size={14} color={colors.text.secondary} />
-              <Text style={styles.applicantsText}>{item.applicants} applicants</Text>
-            </View>
-          </View>
-        </View>
-      </Card>
-    </TouchableOpacity>
-  );
+        </Card>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -258,12 +266,25 @@ export const JobBoardScreen = ({ navigation }: any) => {
           <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Job Board</Text>
-        <TouchableOpacity style={styles.postJobButton}>
+        <TouchableOpacity
+          style={styles.postJobButton}
+          onPress={() => navigation.navigate('PostJob')}
+        >
           <Ionicons name="add-circle" size={28} color={colors.accent.gold} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.accent.gold}
+            colors={[colors.accent.gold]}
+          />
+        }
+      >
         {/* Filters */}
         <View style={styles.filtersSection}>
           <ScrollView
@@ -299,51 +320,56 @@ export const JobBoardScreen = ({ navigation }: any) => {
           </ScrollView>
         </View>
 
-        {/* Stats Banner */}
-        <Card style={styles.statsBanner}>
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{filteredJobs.length}</Text>
-              <Text style={styles.statLabel}>Open Positions</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>
-                {filteredJobs.reduce((sum, job) => sum + job.applicants, 0)}
-              </Text>
-              <Text style={styles.statLabel}>Total Applicants</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>
-                {filteredJobs.filter((j) => j.isFeatured).length}
-              </Text>
-              <Text style={styles.statLabel}>Featured Jobs</Text>
-            </View>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.accent.gold} />
           </View>
-        </Card>
+        ) : (
+          <>
+            {/* Stats Banner */}
+            <Card style={styles.statsBanner}>
+              <View style={styles.statsRow}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{jobs.length}</Text>
+                  <Text style={styles.statLabel}>Open Positions</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>
+                    {jobs.reduce((sum, job) => sum + job.applicationCount, 0)}
+                  </Text>
+                  <Text style={styles.statLabel}>Total Applicants</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{userApplications.length}</Text>
+                  <Text style={styles.statLabel}>Your Applications</Text>
+                </View>
+              </View>
+            </Card>
 
-        {/* Jobs List */}
-        <View style={styles.jobsSection}>
-          <Text style={styles.sectionTitle}>
-            {selectedFilter === 'all' ? 'All Jobs' : jobTypeLabels[selectedFilter]}
-          </Text>
-          {filteredJobs.map((job) => (
-            <View key={job.id}>{renderJob({ item: job })}</View>
-          ))}
-        </View>
-
-        {/* Empty State */}
-        {filteredJobs.length === 0 && (
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIcon}>
-              <Ionicons name="briefcase-outline" size={64} color={colors.text.secondary} />
-            </View>
-            <Text style={styles.emptyTitle}>No jobs found</Text>
-            <Text style={styles.emptySubtitle}>
-              Try adjusting your filters or check back later
-            </Text>
-          </View>
+            {/* Jobs List */}
+            {jobs.length > 0 ? (
+              <View style={styles.jobsSection}>
+                <Text style={styles.sectionTitle}>
+                  {selectedFilter === 'all' ? 'All Jobs' : jobTypeLabels[selectedFilter]}
+                </Text>
+                {jobs.map((job) => (
+                  <View key={job.id}>{renderJob({ item: job })}</View>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.emptyState}>
+                <View style={styles.emptyIcon}>
+                  <Ionicons name="briefcase-outline" size={64} color={colors.text.secondary} />
+                </View>
+                <Text style={styles.emptyTitle}>No jobs found</Text>
+                <Text style={styles.emptySubtitle}>
+                  Try adjusting your filters or check back later
+                </Text>
+              </View>
+            )}
+          </>
         )}
 
         <View style={{ height: spacing['4xl'] }} />
@@ -365,6 +391,12 @@ export const JobBoardScreen = ({ navigation }: any) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background.primary },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing['3xl'],
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -426,7 +458,8 @@ const styles = StyleSheet.create({
   businessName: { ...textStyles.body, fontWeight: '700', marginBottom: 2 },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   locationText: { ...textStyles.caption, color: colors.text.secondary },
-  saveButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  applyButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  appliedBadge: { alignItems: 'center', justifyContent: 'center' },
   jobTitle: { ...textStyles.h3, fontWeight: '700', marginBottom: spacing.sm },
   jobMetaRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
   jobMetaTag: {

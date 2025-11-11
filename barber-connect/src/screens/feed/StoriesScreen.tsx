@@ -8,53 +8,30 @@ import {
   Image,
   Animated,
   PanResponder,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '../../components/common/Avatar';
 import { colors, spacing, textStyles } from '../../theme';
+import { useAuthStore } from '../../store/authStore';
+import {
+  getFeedStories,
+  viewStory,
+  deleteStory,
+  getStoryViewers,
+} from '../../services/storiesService';
+import { StoryGroup } from '../../types/story.types';
 
 const { width, height } = Dimensions.get('window');
 
-interface Story {
-  id: string;
-  imageUrl?: string;
-  duration: number;
-  timestamp: Date;
-}
-
-interface StoryUser {
-  id: string;
-  name: string;
-  avatar?: string;
-  isVerified: boolean;
-  stories: Story[];
-}
-
-const MOCK_STORIES: StoryUser[] = [
-  {
-    id: '1',
-    name: 'Mike the Barber',
-    isVerified: true,
-    stories: [
-      {
-        id: 's1',
-        imageUrl: 'https://via.placeholder.com/400x800/1a1a1a/ffffff?text=Fresh+Fade',
-        duration: 5000,
-        timestamp: new Date(Date.now() - 1000 * 60 * 30),
-      },
-      {
-        id: 's2',
-        imageUrl: 'https://via.placeholder.com/400x800/2a2a2a/ffffff?text=New+Setup',
-        duration: 5000,
-        timestamp: new Date(Date.now() - 1000 * 60 * 60),
-      },
-    ],
-  },
-];
-
 export const StoriesScreen = ({ route, navigation }: any) => {
-  const { userIndex = 0, storyIndex = 0 } = route.params || {};
+  const { user } = useAuthStore();
+  const { storyGroups: passedStoryGroups, userIndex = 0, storyIndex = 0 } = route.params || {};
+
+  const [storyGroups, setStoryGroups] = useState<StoryGroup[]>(passedStoryGroups || []);
+  const [loading, setLoading] = useState(!passedStoryGroups);
 
   const [currentUserIndex, setCurrentUserIndex] = useState(userIndex);
   const [currentStoryIndex, setCurrentStoryIndex] = useState(storyIndex);
@@ -62,15 +39,49 @@ export const StoriesScreen = ({ route, navigation }: any) => {
   const [isPaused, setIsPaused] = useState(false);
 
   const progressAnim = useRef(new Animated.Value(0)).current;
-  const currentUser = MOCK_STORIES[currentUserIndex];
-  const currentStory = currentUser?.stories[currentStoryIndex];
+  const currentUserGroup = storyGroups[currentUserIndex];
+  const currentStory = currentUserGroup?.stories[currentStoryIndex];
 
+  // Load stories if not passed via route params
   useEffect(() => {
-    if (!isPaused && currentStory) {
-      // Animate progress bar
+    if (!passedStoryGroups && user?.id) {
+      loadStories();
+    }
+  }, [user?.id]);
+
+  const loadStories = async () => {
+    if (!user?.id) return;
+    try {
+      setLoading(true);
+      // For now, we'll get stories from the current user only
+      // In a real app, you'd fetch the user's following list first
+      const stories = await getFeedStories(user.id, []);
+      setStoryGroups(stories);
+    } catch (error) {
+      console.error('Error loading stories:', error);
+      Alert.alert('Error', 'Failed to load stories');
+      navigation.goBack();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Mark story as viewed
+  useEffect(() => {
+    if (currentStory && user?.id && !loading) {
+      viewStory(currentStory.id, user.id).catch((error) => {
+        console.error('Error marking story as viewed:', error);
+      });
+    }
+  }, [currentStory?.id, user?.id, loading]);
+
+  // Animate progress bar
+  useEffect(() => {
+    if (!isPaused && currentStory && !loading) {
+      const duration = currentStory.duration * 1000; // Convert to milliseconds
       Animated.timing(progressAnim, {
         toValue: 1,
-        duration: currentStory.duration,
+        duration: duration,
         useNativeDriver: false,
       }).start(({ finished }) => {
         if (finished) {
@@ -82,15 +93,15 @@ export const StoriesScreen = ({ route, navigation }: any) => {
         progressAnim.stopAnimation();
       };
     }
-  }, [currentUserIndex, currentStoryIndex, isPaused]);
+  }, [currentUserIndex, currentStoryIndex, isPaused, loading]);
 
   const handleNext = () => {
     progressAnim.setValue(0);
 
-    if (currentStoryIndex < currentUser.stories.length - 1) {
+    if (currentStoryIndex < currentUserGroup.stories.length - 1) {
       // Next story in current user
       setCurrentStoryIndex(currentStoryIndex + 1);
-    } else if (currentUserIndex < MOCK_STORIES.length - 1) {
+    } else if (currentUserIndex < storyGroups.length - 1) {
       // Next user's first story
       setCurrentUserIndex(currentUserIndex + 1);
       setCurrentStoryIndex(0);
@@ -110,11 +121,57 @@ export const StoriesScreen = ({ route, navigation }: any) => {
       // Previous user's last story
       const prevUserIndex = currentUserIndex - 1;
       setCurrentUserIndex(prevUserIndex);
-      setCurrentStoryIndex(MOCK_STORIES[prevUserIndex].stories.length - 1);
+      setCurrentStoryIndex(storyGroups[prevUserIndex].stories.length - 1);
     } else {
       // At the beginning
       navigation.goBack();
     }
+  };
+
+  const handleDeleteStory = async () => {
+    if (!currentStory || !user?.id) return;
+
+    // Only allow deletion of own stories
+    if (currentStory.userId !== user.id) {
+      Alert.alert('Error', 'You can only delete your own stories');
+      return;
+    }
+
+    Alert.alert(
+      'Delete Story',
+      'Are you sure you want to delete this story?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteStory(currentStory.id, user.id);
+              // Remove story from local state
+              const updatedGroups = [...storyGroups];
+              const currentGroup = updatedGroups[currentUserIndex];
+              currentGroup.stories = currentGroup.stories.filter(s => s.id !== currentStory.id);
+
+              if (currentGroup.stories.length === 0) {
+                // Remove the entire group if no stories left
+                updatedGroups.splice(currentUserIndex, 1);
+                if (updatedGroups.length === 0) {
+                  navigation.goBack();
+                  return;
+                }
+              }
+
+              setStoryGroups(updatedGroups);
+              handleNext();
+            } catch (error) {
+              console.error('Error deleting story:', error);
+              Alert.alert('Error', 'Failed to delete story');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const panResponder = useRef(
@@ -146,7 +203,8 @@ export const StoriesScreen = ({ route, navigation }: any) => {
     })
   ).current;
 
-  const formatTimestamp = (date: Date): string => {
+  const formatTimestamp = (dateString: string): string => {
+    const date = new Date(dateString);
     const diffInMs = Date.now() - date.getTime();
     const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
     const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
@@ -156,17 +214,27 @@ export const StoriesScreen = ({ route, navigation }: any) => {
     return `${Math.floor(diffInHours / 24)}d ago`;
   };
 
-  if (!currentUser || !currentStory) {
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={colors.accent.gold} />
+      </View>
+    );
+  }
+
+  if (!currentUserGroup || !currentStory || storyGroups.length === 0) {
     navigation.goBack();
     return null;
   }
+
+  const isOwnStory = currentStory.userId === user?.id;
 
   return (
     <View style={styles.container} {...panResponder.panHandlers}>
       {/* Story Image/Content */}
       <View style={styles.storyContent}>
         <Image
-          source={{ uri: currentStory.imageUrl }}
+          source={{ uri: currentStory.mediaUrl }}
           style={styles.storyImage}
           resizeMode="cover"
         />
@@ -178,7 +246,7 @@ export const StoriesScreen = ({ route, navigation }: any) => {
 
       {/* Progress Bars */}
       <View style={styles.progressContainer}>
-        {currentUser.stories.map((_, index) => (
+        {currentUserGroup.stories.map((_, index) => (
           <View key={index} style={styles.progressBarBg}>
             <Animated.View
               style={[
@@ -203,17 +271,43 @@ export const StoriesScreen = ({ route, navigation }: any) => {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.userInfo}>
-          <Avatar name={currentUser.name} size="sm" verified={currentUser.isVerified} />
+          <Avatar
+            name={currentUserGroup.userName}
+            imageUrl={currentUserGroup.userAvatar}
+            size="sm"
+          />
           <View style={styles.userText}>
-            <Text style={styles.userName}>{currentUser.name}</Text>
-            <Text style={styles.timestamp}>{formatTimestamp(currentStory.timestamp)}</Text>
+            <Text style={styles.userName}>{currentUserGroup.userName}</Text>
+            <Text style={styles.timestamp}>{formatTimestamp(currentStory.createdAt)}</Text>
           </View>
         </View>
 
-        <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="close" size={28} color="#FFF" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          {isOwnStory && (
+            <TouchableOpacity style={styles.actionButton} onPress={handleDeleteStory}>
+              <Ionicons name="trash-outline" size={24} color="#FFF" />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="close" size={28} color="#FFF" />
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* Caption */}
+      {currentStory.caption && (
+        <View style={styles.captionContainer}>
+          <Text style={styles.captionText}>{currentStory.caption}</Text>
+        </View>
+      )}
+
+      {/* View Count (for own stories) */}
+      {isOwnStory && currentStory.viewCount > 0 && (
+        <View style={styles.viewCountContainer}>
+          <Ionicons name="eye" size={16} color="#FFF" />
+          <Text style={styles.viewCountText}>{currentStory.viewCount} views</Text>
+        </View>
+      )}
 
       {/* Tap Zones (for debugging in dev) */}
       {__DEV__ && (
@@ -230,6 +324,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   storyContent: {
     flex: 1,
@@ -281,6 +379,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+    flex: 1,
   },
   userText: {
     gap: 2,
@@ -294,11 +393,54 @@ const styles = StyleSheet.create({
     ...textStyles.caption,
     color: 'rgba(255, 255, 255, 0.8)',
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  actionButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   closeButton: {
     width: 40,
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  captionContainer: {
+    position: 'absolute',
+    bottom: 100,
+    left: spacing.lg,
+    right: spacing.lg,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    padding: spacing.md,
+    borderRadius: 12,
+    zIndex: 10,
+  },
+  captionText: {
+    ...textStyles.body,
+    color: '#FFF',
+  },
+  viewCountContainer: {
+    position: 'absolute',
+    bottom: spacing.xl,
+    left: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 20,
+    zIndex: 10,
+  },
+  viewCountText: {
+    ...textStyles.caption,
+    color: '#FFF',
+    fontWeight: '600',
   },
   tapZone: {
     position: 'absolute',

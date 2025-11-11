@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,118 +6,103 @@ import {
   SafeAreaView,
   FlatList,
   TouchableOpacity,
+  RefreshControl,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '../../components/common/Avatar';
 import { colors, spacing, borderRadius, textStyles } from '../../theme';
-
-type NotificationType =
-  | 'booking'
-  | 'message'
-  | 'follow'
-  | 'like'
-  | 'comment'
-  | 'job'
-  | 'promotion';
-
-interface Notification {
-  id: string;
-  type: NotificationType;
-  title: string;
-  message: string;
-  timestamp: Date;
-  isRead: boolean;
-  user?: {
-    name: string;
-    avatar?: string;
-    isVerified?: boolean;
-  };
-  actionData?: any;
-}
-
-const MOCK_NOTIFICATIONS: Notification[] = [
-  {
-    id: '1',
-    type: 'booking',
-    title: 'New Booking',
-    message: 'John Doe booked a Premium Fade for tomorrow at 2:00 PM',
-    timestamp: new Date(Date.now() - 1000 * 60 * 5),
-    isRead: false,
-    user: { name: 'John Doe' },
-  },
-  {
-    id: '2',
-    type: 'message',
-    title: 'New Message',
-    message: 'Mike the Barber: "See you tomorrow!"',
-    timestamp: new Date(Date.now() - 1000 * 60 * 30),
-    isRead: false,
-    user: { name: 'Mike the Barber', isVerified: true },
-  },
-  {
-    id: '3',
-    type: 'follow',
-    title: 'New Follower',
-    message: 'Carlos Rodriguez started following you',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
-    isRead: true,
-    user: { name: 'Carlos Rodriguez', isVerified: true },
-  },
-  {
-    id: '4',
-    type: 'like',
-    title: 'New Like',
-    message: 'Sarah Johnson liked your post',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5),
-    isRead: true,
-    user: { name: 'Sarah Johnson' },
-  },
-  {
-    id: '5',
-    type: 'comment',
-    title: 'New Comment',
-    message: 'David Martinez: "Great work! How much for this cut?"',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24),
-    isRead: true,
-    user: { name: 'David Martinez' },
-  },
-  {
-    id: '6',
-    type: 'job',
-    title: 'New Job Posted',
-    message: 'Elite Cuts Studio is hiring - Senior Barber position',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2),
-    isRead: true,
-  },
-  {
-    id: '7',
-    type: 'promotion',
-    title: 'Upgrade Available',
-    message: 'Get 20% off Premium plans this weekend only!',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3),
-    isRead: true,
-  },
-];
+import { useAuthStore } from '../../store/authStore';
+import {
+  listenToNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  deleteNotification,
+  getUnreadNotificationCount,
+} from '../../services/notificationService';
+import { Notification, NotificationType } from '../../types/notification.types';
 
 export const NotificationsScreen = ({ navigation }: any) => {
-  const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
+  const { user } = useAuthStore();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Set up real-time listener for notifications
+  useEffect(() => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+
+    const unsubscribe = listenToNotifications(user.id, (newNotifications) => {
+      setNotifications(newNotifications);
+      const unread = newNotifications.filter((n) => !n.isRead).length;
+      setUnreadCount(unread);
+      setLoading(false);
+      setRefreshing(false);
+    });
+
+    return () => unsubscribe();
+  }, [user?.id]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    // The real-time listener will update the data automatically
+  };
+
+  const handleMarkAsRead = async (notificationId: string) => {
+    try {
+      await markNotificationAsRead(notificationId);
+      // The real-time listener will update the UI automatically
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    if (!user?.id) return;
+    try {
+      await markAllNotificationsAsRead(user.id);
+      // The real-time listener will update the UI automatically
+    } catch (error) {
+      console.error('Error marking all as read:', error);
+      Alert.alert('Error', 'Failed to mark all notifications as read');
+    }
+  };
+
+  const handleDeleteNotification = async (notificationId: string) => {
+    try {
+      await deleteNotification(notificationId);
+      // The real-time listener will update the UI automatically
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      Alert.alert('Error', 'Failed to delete notification');
+    }
+  };
 
   const getNotificationIcon = (type: NotificationType): keyof typeof Ionicons.glyphMap => {
     switch (type) {
-      case 'booking':
+      case NotificationType.BOOKING_CONFIRMED:
+      case NotificationType.BOOKING_CANCELLED:
+      case NotificationType.BOOKING_REMINDER:
         return 'calendar';
-      case 'message':
+      case NotificationType.NEW_MESSAGE:
         return 'chatbubble';
-      case 'follow':
+      case NotificationType.NEW_FOLLOWER:
         return 'person-add';
-      case 'like':
+      case NotificationType.POST_LIKE:
         return 'heart';
-      case 'comment':
+      case NotificationType.POST_COMMENT:
         return 'chatbubble-ellipses';
-      case 'job':
-        return 'briefcase';
-      case 'promotion':
+      case NotificationType.REVIEW_RECEIVED:
+        return 'star';
+      case NotificationType.PROMOTION_UPDATE:
         return 'megaphone';
+      case NotificationType.SYSTEM:
+        return 'notifications';
       default:
         return 'notifications';
     }
@@ -125,27 +110,32 @@ export const NotificationsScreen = ({ navigation }: any) => {
 
   const getNotificationColor = (type: NotificationType): string => {
     switch (type) {
-      case 'booking':
+      case NotificationType.BOOKING_CONFIRMED:
+      case NotificationType.BOOKING_CANCELLED:
+      case NotificationType.BOOKING_REMINDER:
         return colors.accent.blue;
-      case 'message':
+      case NotificationType.NEW_MESSAGE:
         return colors.accent.gold;
-      case 'follow':
+      case NotificationType.NEW_FOLLOWER:
         return colors.accent.gold;
-      case 'like':
+      case NotificationType.POST_LIKE:
         return colors.accent.red;
-      case 'comment':
+      case NotificationType.POST_COMMENT:
         return colors.accent.blue;
-      case 'job':
-        return colors.success;
-      case 'promotion':
+      case NotificationType.REVIEW_RECEIVED:
         return colors.accent.gold;
+      case NotificationType.PROMOTION_UPDATE:
+        return colors.accent.gold;
+      case NotificationType.SYSTEM:
+        return colors.text.secondary;
       default:
         return colors.text.secondary;
     }
   };
 
-  const formatTimestamp = (date: Date): string => {
+  const formatTimestamp = (dateString: string): string => {
     const now = new Date();
+    const date = new Date(dateString);
     const diffInMs = now.getTime() - date.getTime();
     const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
     const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
@@ -160,16 +150,6 @@ export const NotificationsScreen = ({ navigation }: any) => {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  const markAsRead = (id: string) => {
-    setNotifications(
-      notifications.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-    );
-  };
-
-  const markAllAsRead = () => {
-    setNotifications(notifications.map((n) => ({ ...n, isRead: true })));
-  };
-
   const renderNotification = ({ item }: { item: Notification }) => {
     const iconName = getNotificationIcon(item.type);
     const iconColor = getNotificationColor(item.type);
@@ -178,17 +158,27 @@ export const NotificationsScreen = ({ navigation }: any) => {
       <TouchableOpacity
         style={[styles.notificationItem, !item.isRead && styles.unreadNotification]}
         onPress={() => {
-          markAsRead(item.id);
+          handleMarkAsRead(item.id);
           // Handle navigation based on type
+        }}
+        onLongPress={() => {
+          Alert.alert(
+            'Delete Notification',
+            'Are you sure you want to delete this notification?',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Delete', onPress: () => handleDeleteNotification(item.id), style: 'destructive' },
+            ]
+          );
         }}
         activeOpacity={0.7}
       >
         <View style={styles.notificationContent}>
-          {item.user ? (
+          {item.senderName ? (
             <Avatar
-              name={item.user.name}
+              name={item.senderName}
+              imageUrl={item.senderAvatar}
               size="md"
-              verified={item.user.isVerified}
             />
           ) : (
             <View style={[styles.iconContainer, { backgroundColor: iconColor + '20' }]}>
@@ -207,7 +197,7 @@ export const NotificationsScreen = ({ navigation }: any) => {
             >
               {item.message}
             </Text>
-            <Text style={styles.timestamp}>{formatTimestamp(item.timestamp)}</Text>
+            <Text style={styles.timestamp}>{formatTimestamp(item.createdAt)}</Text>
           </View>
 
           {!item.isRead && <View style={styles.unreadDot} />}
@@ -216,7 +206,22 @@ export const NotificationsScreen = ({ navigation }: any) => {
     );
   };
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Notifications</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.accent.gold} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -227,7 +232,7 @@ export const NotificationsScreen = ({ navigation }: any) => {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Notifications</Text>
         {unreadCount > 0 && (
-          <TouchableOpacity onPress={markAllAsRead} style={styles.markAllButton}>
+          <TouchableOpacity onPress={handleMarkAllAsRead} style={styles.markAllButton}>
             <Text style={styles.markAllText}>Mark all read</Text>
           </TouchableOpacity>
         )}
@@ -252,6 +257,14 @@ export const NotificationsScreen = ({ navigation }: any) => {
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.accent.gold}
+              colors={[colors.accent.gold]}
+            />
+          }
         />
       ) : (
         <View style={styles.emptyState}>
@@ -270,6 +283,11 @@ export const NotificationsScreen = ({ navigation }: any) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background.primary },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
