@@ -14,16 +14,25 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Avatar } from '../../components/common/Avatar';
-import { Button } from '../../components/common/Button';
+import { Card } from '../../components/common/Card';
 import { colors, spacing, borderRadius, textStyles, shadows } from '../../theme';
-import { Post, PostType, Story } from '../../types/post.types';
+import { Post, PostType } from '../../types/post.types';
 import { MOCK_POSTS } from '../../utils/mockData';
 
 const { width } = Dimensions.get('window');
+const CARD_WIDTH = width - spacing.lg * 2;
+
+const CATEGORIES = [
+  { id: 'all', label: 'All Posts', icon: 'apps' },
+  { id: 'trending', label: 'Trending', icon: 'flame' },
+  { id: 'nearby', label: 'Nearby', icon: 'location' },
+  { id: 'following', label: 'Following', icon: 'people' },
+];
 
 export const FeedScreen = ({ navigation }: any) => {
   const [posts, setPosts] = useState<Post[]>(MOCK_POSTS);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('all');
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -61,83 +70,80 @@ export const FeedScreen = ({ navigation }: any) => {
     );
   };
 
-  const renderStory = ({ item, index }: { item: any; index: number }) => (
-    <TouchableOpacity style={styles.storyItem} activeOpacity={0.8}>
-      <LinearGradient
-        colors={index === 0 ? ['#9CA3AF', '#9CA3AF'] : ['#D4AF37', '#FFD700', '#D4AF37']}
-        style={styles.storyGradient}
-      >
-        <View style={styles.storyInner}>
-          {index === 0 ? (
-            <View style={styles.addStoryIcon}>
-              <Ionicons name="add" size={24} color={colors.text.primary} />
-            </View>
-          ) : (
-            <Avatar name={`Barber ${item}`} size="md" />
-          )}
-        </View>
-      </LinearGradient>
-      <Text style={styles.storyName} numberOfLines={1}>
-        {index === 0 ? 'Your Story' : `Barber ${item}`}
-      </Text>
+  const renderCategory = ({ item }: { item: typeof CATEGORIES[0] }) => (
+    <TouchableOpacity
+      style={[
+        styles.categoryChip,
+        selectedCategory === item.id && styles.categoryChipActive,
+      ]}
+      onPress={() => setSelectedCategory(item.id)}
+      activeOpacity={0.7}
+    >
+      {selectedCategory === item.id ? (
+        <LinearGradient
+          colors={['#D4AF37', '#FFD700', '#D4AF37']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.categoryGradient}
+        >
+          <Ionicons name={item.icon as any} size={16} color="#000" />
+          <Text style={styles.categoryTextActive}>{item.label}</Text>
+        </LinearGradient>
+      ) : (
+        <>
+          <Ionicons name={item.icon as any} size={16} color={colors.text.secondary} />
+          <Text style={styles.categoryText}>{item.label}</Text>
+        </>
+      )}
     </TouchableOpacity>
   );
 
   const renderPost = ({ item }: { item: Post }) => (
-    <View style={styles.postCard}>
-      {/* Post Header */}
-      <View style={styles.postHeader}>
-        <TouchableOpacity
-          style={styles.postAuthor}
-          onPress={() => navigation.navigate('BarberProfile', { barberId: item.authorId })}
-        >
-          <Avatar
-            name={item.authorName}
-            size="md"
-            verified={item.isVerified}
-            showGradientBorder={item.promotionTier !== 'FREE'}
-          />
-          <View style={styles.authorInfo}>
-            <View style={styles.authorNameRow}>
-              <Text style={styles.authorName}>{item.authorName}</Text>
-              {item.isVerified && (
-                <Ionicons name="checkmark-circle" size={16} color={colors.accent.blue} />
-              )}
-              {item.promotionTier && item.promotionTier !== 'FREE' && (
-                <View style={[styles.promotionMini, { backgroundColor: colors.accent.gold }]}>
-                  <Ionicons name="star" size={10} color="#000" />
-                </View>
-              )}
-            </View>
-            <Text style={styles.postTime}>2 hours ago</Text>
-            {item.location && (
-              <View style={styles.locationRow}>
-                <Ionicons name="location" size={12} color={colors.text.secondary} />
-                <Text style={styles.locationText} numberOfLines={1}>
-                  {item.location.name}
-                </Text>
+    <Card style={styles.postCard}>
+      {/* Card Header - Author Info */}
+      <TouchableOpacity
+        style={styles.cardHeader}
+        onPress={() => navigation.navigate('BarberProfile', { barberId: item.authorId })}
+        activeOpacity={0.9}
+      >
+        <Avatar
+          name={item.authorName}
+          size="md"
+          verified={item.isVerified}
+          showGradientBorder={item.promotionTier !== 'FREE'}
+        />
+        <View style={styles.authorInfo}>
+          <View style={styles.authorNameRow}>
+            <Text style={styles.authorName} numberOfLines={1}>
+              {item.authorName}
+            </Text>
+            {item.isVerified && (
+              <Ionicons name="checkmark-circle" size={14} color={colors.accent.blue} />
+            )}
+            {item.promotionTier && item.promotionTier !== 'FREE' && (
+              <View style={styles.premiumBadge}>
+                <Ionicons name="star" size={10} color="#000" />
               </View>
             )}
           </View>
-        </TouchableOpacity>
+          <Text style={styles.postMeta} numberOfLines={1}>
+            2h ago {item.location && `• ${item.location.name}`}
+          </Text>
+        </View>
         <TouchableOpacity style={styles.moreButton}>
-          <Ionicons name="ellipsis-horizontal" size={24} color={colors.text.primary} />
+          <Ionicons name="ellipsis-horizontal" size={20} color={colors.text.secondary} />
         </TouchableOpacity>
-      </View>
+      </TouchableOpacity>
 
-      {/* Post Media */}
-      <View style={styles.mediaContainer}>
+      {/* Post Image */}
+      <TouchableOpacity
+        style={styles.imageContainer}
+        onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
+        activeOpacity={0.95}
+      >
         {item.type === PostType.VIDEO && (
-          <View style={styles.videoOverlay}>
-            <View style={styles.playButton}>
-              <Ionicons name="play" size={32} color="#FFF" />
-            </View>
-            <View style={styles.videoDuration}>
-              <Ionicons name="time-outline" size={12} color="#FFF" />
-              <Text style={styles.durationText}>
-                {item.media[0].duration}s
-              </Text>
-            </View>
+          <View style={styles.videoIndicator}>
+            <Ionicons name="play-circle" size={48} color="rgba(255,255,255,0.9)" />
           </View>
         )}
         <Image
@@ -145,93 +151,130 @@ export const FeedScreen = ({ navigation }: any) => {
           style={styles.postImage}
           resizeMode="cover"
         />
-      </View>
-
-      {/* Post Actions */}
-      <View style={styles.actionsRow}>
-        <View style={styles.leftActions}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => handleLike(item.id)}
-          >
-            <Ionicons
-              name={item.isLiked ? 'heart' : 'heart-outline'}
-              size={28}
-              color={item.isLiked ? colors.social.like : colors.text.primary}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
-          >
-            <Ionicons name="chatbubble-outline" size={26} color={colors.text.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
-            <Ionicons name="paper-plane-outline" size={26} color={colors.text.primary} />
-          </TouchableOpacity>
-        </View>
-        <TouchableOpacity onPress={() => handleSave(item.id)}>
-          <Ionicons
-            name={item.isSaved ? 'bookmark' : 'bookmark-outline'}
-            size={26}
-            color={item.isSaved ? colors.social.bookmark : colors.text.primary}
-          />
-        </TouchableOpacity>
-      </View>
-
-      {/* Post Stats & Caption */}
-      <View style={styles.postContent}>
-        <TouchableOpacity>
-          <Text style={styles.likesText}>{item.likesCount.toLocaleString()} likes</Text>
-        </TouchableOpacity>
-
-        <View style={styles.captionRow}>
-          <Text style={styles.captionText}>
-            <Text style={styles.authorNameBold}>{item.authorName} </Text>
-            {item.caption}
-          </Text>
-        </View>
-
-        {item.hashtags.length > 0 && (
-          <View style={styles.hashtagsRow}>
-            {item.hashtags.map((tag, index) => (
-              <TouchableOpacity key={index}>
-                <Text style={styles.hashtag}>#{tag}</Text>
-              </TouchableOpacity>
-            ))}
+        {item.media.length > 1 && (
+          <View style={styles.multiImageIndicator}>
+            <Ionicons name="images" size={16} color="#FFF" />
           </View>
         )}
+      </TouchableOpacity>
 
-        {item.commentsCount > 0 && (
-          <TouchableOpacity onPress={() => navigation.navigate('PostDetail', { postId: item.id })}>
-            <Text style={styles.viewComments}>
-              View all {item.commentsCount} comments
+      {/* Post Content */}
+      <View style={styles.cardContent}>
+        {/* Caption */}
+        {item.caption && (
+          <TouchableOpacity
+            onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
+          >
+            <Text style={styles.captionText} numberOfLines={2}>
+              {item.caption}
             </Text>
           </TouchableOpacity>
         )}
+
+        {/* Hashtags */}
+        {item.hashtags.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.hashtagsScroll}
+            contentContainerStyle={styles.hashtagsContent}
+          >
+            {item.hashtags.map((tag, index) => (
+              <View key={index} style={styles.hashtagChip}>
+                <Text style={styles.hashtagText}>#{tag}</Text>
+              </View>
+            ))}
+          </ScrollView>
+        )}
+
+        {/* Stats & Actions */}
+        <View style={styles.statsActionsRow}>
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Ionicons name="heart" size={16} color={colors.social.like} />
+              <Text style={styles.statText}>{item.likesCount}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Ionicons name="chatbubble" size={16} color={colors.accent.blue} />
+              <Text style={styles.statText}>{item.commentsCount}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Ionicons name="eye" size={16} color={colors.text.secondary} />
+              <Text style={styles.statText}>{item.viewsCount}</Text>
+            </View>
+          </View>
+
+          <View style={styles.actionsRow}>
+            <TouchableOpacity
+              style={[styles.actionBtn, item.isLiked && styles.actionBtnActive]}
+              onPress={() => handleLike(item.id)}
+            >
+              <Ionicons
+                name={item.isLiked ? 'heart' : 'heart-outline'}
+                size={20}
+                color={item.isLiked ? colors.social.like : colors.text.primary}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionBtn}
+              onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
+            >
+              <Ionicons name="chatbubble-outline" size={20} color={colors.text.primary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionBtn}>
+              <Ionicons name="paper-plane-outline" size={20} color={colors.text.primary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionBtn, item.isSaved && styles.actionBtnActive]}
+              onPress={() => handleSave(item.id)}
+            >
+              <Ionicons
+                name={item.isSaved ? 'bookmark' : 'bookmark-outline'}
+                size={20}
+                color={item.isSaved ? colors.accent.gold : colors.text.primary}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
-    </View>
+    </Card>
   );
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <LinearGradient
-          colors={['#D4AF37', '#FFD700', '#D4AF37']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.logoGradient}
-        >
-          <Ionicons name="cut" size={24} color="#000" />
-        </LinearGradient>
-        <Text style={styles.headerTitle}>BarberConnect</Text>
+        <View style={styles.headerLeft}>
+          <LinearGradient
+            colors={['#D4AF37', '#FFD700', '#D4AF37']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.logoGradient}
+          >
+            <Ionicons name="cut" size={20} color="#000" />
+          </LinearGradient>
+          <Text style={styles.headerTitle}>Community</Text>
+        </View>
         <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => navigation.navigate('Stories')}
+          >
+            <LinearGradient
+              colors={['#D4AF37', '#FFD700']}
+              style={styles.storiesIconGradient}
+            >
+              <Ionicons name="images-outline" size={20} color="#000" />
+            </LinearGradient>
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerButton}
             onPress={() => navigation.navigate('Notifications')}
           >
-            <Ionicons name="notifications-outline" size={28} color={colors.text.primary} />
+            <Ionicons name="notifications-outline" size={24} color={colors.text.primary} />
             <View style={styles.notificationBadge}>
               <Text style={styles.notificationText}>3</Text>
             </View>
@@ -240,20 +283,20 @@ export const FeedScreen = ({ navigation }: any) => {
             style={styles.headerButton}
             onPress={() => navigation.navigate('UserSearch')}
           >
-            <Ionicons name="search-outline" size={28} color={colors.text.primary} />
+            <Ionicons name="search-outline" size={24} color={colors.text.primary} />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Stories */}
-      <View style={styles.storiesContainer}>
+      {/* Categories */}
+      <View style={styles.categoriesContainer}>
         <FlatList
           horizontal
           showsHorizontalScrollIndicator={false}
-          data={[0, 1, 2, 3, 4, 5]}
-          renderItem={renderStory}
-          keyExtractor={(item) => item.toString()}
-          contentContainerStyle={styles.storiesList}
+          data={CATEGORIES}
+          renderItem={renderCategory}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.categoriesList}
         />
       </View>
 
@@ -263,9 +306,31 @@ export const FeedScreen = ({ navigation }: any) => {
         renderItem={renderPost}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.accent.gold}
+          />
+        }
         contentContainerStyle={styles.feedContent}
       />
+
+      {/* FAB - Create Post */}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => navigation.navigate('CreatePost')}
+        activeOpacity={0.9}
+      >
+        <LinearGradient
+          colors={['#D4AF37', '#FFD700', '#D4AF37']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.fabGradient}
+        >
+          <Ionicons name="add" size={28} color="#000" />
+        </LinearGradient>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 };
@@ -278,30 +343,42 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.border.light,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.sm,
   },
   logoGradient: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     borderRadius: borderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
-    ...textStyles.h4,
-    fontWeight: '800',
-    flex: 1,
+    ...textStyles.h3,
+    fontWeight: '700',
   },
   headerActions: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.md,
   },
   headerButton: {
     position: 'relative',
+  },
+  storiesIconGradient: {
+    width: 32,
+    height: 32,
+    borderRadius: borderRadius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   notificationBadge: {
     position: 'absolute',
@@ -309,8 +386,8 @@ const styles = StyleSheet.create({
     right: -4,
     backgroundColor: colors.social.like,
     borderRadius: borderRadius.full,
-    minWidth: 18,
-    height: 18,
+    minWidth: 16,
+    height: 16,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
@@ -320,66 +397,60 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFF',
   },
-  storiesContainer: {
+  categoriesContainer: {
     borderBottomWidth: 1,
     borderBottomColor: colors.border.light,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
   },
-  storiesList: {
-    paddingHorizontal: spacing.md,
+  categoriesList: {
+    paddingHorizontal: spacing.lg,
     gap: spacing.sm,
   },
-  storyItem: {
-    alignItems: 'center',
-    width: 72,
-  },
-  storyGradient: {
-    width: 68,
-    height: 68,
+  categoryChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
-    padding: 3,
-    marginBottom: spacing.xs,
-  },
-  storyInner: {
-    width: '100%',
-    height: '100%',
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.background.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  addStoryIcon: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: colors.background.secondary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
-  storyName: {
-    ...textStyles.caption,
+  categoryChipActive: {
+    backgroundColor: 'transparent',
+    padding: 0,
+  },
+  categoryGradient: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  categoryText: {
+    ...textStyles.bodySmall,
     color: colors.text.secondary,
-    textAlign: 'center',
+    fontWeight: '600',
+  },
+  categoryTextActive: {
+    ...textStyles.bodySmall,
+    color: '#000',
+    fontWeight: '700',
   },
   feedContent: {
-    paddingBottom: spacing.xl,
+    padding: spacing.lg,
+    paddingBottom: spacing['4xl'],
+    gap: spacing.lg,
   },
   postCard: {
-    backgroundColor: colors.background.card,
-    marginBottom: spacing.sm,
+    padding: 0,
+    overflow: 'hidden',
   },
-  postHeader: {
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  postAuthor: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    padding: spacing.md,
     gap: spacing.sm,
-    flex: 1,
   },
   authorInfo: {
     flex: 1,
@@ -394,118 +465,127 @@ const styles = StyleSheet.create({
     ...textStyles.body,
     fontWeight: '700',
   },
-  promotionMini: {
+  premiumBadge: {
     width: 16,
     height: 16,
     borderRadius: borderRadius.full,
+    backgroundColor: colors.accent.gold,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  postTime: {
-    ...textStyles.caption,
-    color: colors.text.secondary,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  locationText: {
+  postMeta: {
     ...textStyles.caption,
     color: colors.text.secondary,
   },
   moreButton: {
     padding: spacing.xs,
   },
-  mediaContainer: {
+  imageContainer: {
     position: 'relative',
-    width: width,
-    height: width,
+    width: CARD_WIDTH,
+    height: CARD_WIDTH * 0.75,
     backgroundColor: colors.background.secondary,
   },
   postImage: {
     width: '100%',
     height: '100%',
   },
-  videoOverlay: {
+  videoIndicator: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.2)',
     zIndex: 1,
   },
-  playButton: {
-    width: 64,
-    height: 64,
-    borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  videoDuration: {
+  multiImageIndicator: {
     position: 'absolute',
-    bottom: spacing.md,
-    right: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    top: spacing.sm,
+    right: spacing.sm,
+    backgroundColor: 'rgba(0,0,0,0.6)',
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.sm,
-  },
-  durationText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#FFF',
-  },
-  actionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    gap: 4,
   },
-  leftActions: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  actionButton: {
-    padding: spacing.xs,
-  },
-  postContent: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-    gap: spacing.xs,
-  },
-  likesText: {
-    ...textStyles.bodySmall,
-    fontWeight: '700',
-  },
-  captionRow: {
-    marginTop: spacing.xs,
+  cardContent: {
+    padding: spacing.md,
+    gap: spacing.sm,
   },
   captionText: {
-    ...textStyles.bodySmall,
+    ...textStyles.body,
     color: colors.text.primary,
-    lineHeight: 18,
+    lineHeight: 20,
   },
-  authorNameBold: {
-    fontWeight: '700',
+  hashtagsScroll: {
+    marginHorizontal: -spacing.md,
   },
-  hashtagsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  hashtagsContent: {
+    paddingHorizontal: spacing.md,
     gap: spacing.xs,
-    marginTop: spacing.xs,
   },
-  hashtag: {
-    ...textStyles.bodySmall,
+  hashtagChip: {
+    backgroundColor: colors.accent.blue + '15',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: borderRadius.sm,
+  },
+  hashtagText: {
+    ...textStyles.caption,
     color: colors.accent.blue,
     fontWeight: '600',
   },
-  viewComments: {
+  statsActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.xs,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border.light,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  statText: {
     ...textStyles.caption,
     color: colors.text.secondary,
-    marginTop: spacing.xs,
+    fontWeight: '600',
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  actionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.background.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionBtnActive: {
+    backgroundColor: colors.accent.gold + '20',
+  },
+  fab: {
+    position: 'absolute',
+    bottom: spacing['2xl'],
+    right: spacing.lg,
+    borderRadius: borderRadius.full,
+    ...shadows.lg,
+  },
+  fabGradient: {
+    width: 56,
+    height: 56,
+    borderRadius: borderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

@@ -260,25 +260,21 @@ export const ProfileScreen = ({ navigation }: any) => {
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
             <Button
-              title="Edit Profile"
-              onPress={() => navigation.navigate('EditProfile')}
+              title="View My Profile"
+              onPress={() => navigation.navigate('UserProfileView', { userId: user?.id, isOwnProfile: true })}
               variant="gradient"
               size="medium"
-              icon="create-outline"
+              icon="person-outline"
               style={styles.editButton}
             />
-            {isBarber && (
-              <Button
-                title="View as Client"
-                onPress={() =>
-                  navigation.navigate('BarberProfile', { barberId: user?.id })
-                }
-                variant="outline"
-                size="medium"
-                icon="eye-outline"
-                style={styles.viewButton}
-              />
-            )}
+            <Button
+              title="Edit Profile"
+              onPress={() => navigation.navigate('EditProfile')}
+              variant="outline"
+              size="medium"
+              icon="create-outline"
+              style={styles.viewButton}
+            />
           </View>
         </View>
 
