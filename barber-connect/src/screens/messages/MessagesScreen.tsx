@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,10 +7,15 @@ import {
   FlatList,
   TouchableOpacity,
   TextInput,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '../../components/common/Avatar';
 import { colors, spacing, borderRadius, textStyles } from '../../theme';
+import { useAuthStore } from '../../store/authStore';
+import { listenToConversations } from '../../services/chatService';
+import { Conversation as FirebaseConversation } from '../../types/message.types';
 
 interface Conversation {
   id: string;
@@ -30,90 +35,64 @@ interface Conversation {
   unreadCount: number;
 }
 
-const MOCK_CONVERSATIONS: Conversation[] = [
-  {
-    id: '1',
-    participant: {
-      id: 'b1',
-      name: 'Mike the Barber',
-      isVerified: true,
-      isOnline: true,
-    },
-    lastMessage: {
-      text: 'See you tomorrow at 2pm!',
-      timestamp: new Date(Date.now() - 1000 * 60 * 5),
-      isRead: true,
-      sentByMe: false,
-    },
-    unreadCount: 0,
-  },
-  {
-    id: '2',
-    participant: {
-      id: 'b2',
-      name: 'Elite Cuts Studio',
-      isVerified: true,
-      isOnline: false,
-    },
-    lastMessage: {
-      text: 'Thanks for booking! Looking forward to seeing you.',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
-      isRead: false,
-      sentByMe: false,
-    },
-    unreadCount: 2,
-  },
-  {
-    id: '3',
-    participant: {
-      id: 'c1',
-      name: 'John Client',
-      isOnline: true,
-    },
-    lastMessage: {
-      text: 'Do you have availability this weekend?',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5),
-      isRead: true,
-      sentByMe: false,
-    },
-    unreadCount: 1,
-  },
-  {
-    id: '4',
-    participant: {
-      id: 'b3',
-      name: 'Fresh Fade Barbershop',
-      isVerified: true,
-      isOnline: false,
-    },
-    lastMessage: {
-      text: 'Perfect! Booking confirmed.',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24),
-      isRead: true,
-      sentByMe: true,
-    },
-    unreadCount: 0,
-  },
-  {
-    id: '5',
-    participant: {
-      id: 'c2',
-      name: 'David Martinez',
-      isOnline: false,
-    },
-    lastMessage: {
-      text: 'What are your rates for a fade?',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 48),
-      isRead: true,
-      sentByMe: false,
-    },
-    unreadCount: 0,
-  },
-];
-
 export const MessagesScreen = ({ navigation }: any) => {
+  const { user } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState('');
-  const [conversations, setConversations] = useState<Conversation[]>(MOCK_CONVERSATIONS);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setLoading(false);
+      setError('User not authenticated');
+      return;
+    }
+
+    try {
+      // Subscribe to real-time conversations updates
+      const unsubscribe = listenToConversations(user.id, (firebaseConversations) => {
+        // Map Firebase conversations to screen format
+        const mappedConversations: Conversation[] = firebaseConversations.map((conv) => {
+          // Get the other participant's details
+          const otherUserId = conv.participants.find((id) => id !== user.id) || '';
+          const otherParticipant = conv.participantDetails[otherUserId];
+
+          return {
+            id: conv.id,
+            participant: {
+              id: otherUserId,
+              name: otherParticipant?.name || 'Unknown User',
+              avatar: otherParticipant?.avatar,
+              isVerified: otherParticipant?.role === 'BARBER',
+              isOnline: false, // Can be enhanced with online status tracking
+            },
+            lastMessage: {
+              text: conv.lastMessage?.content || 'No messages yet',
+              timestamp: conv.lastMessage?.createdAt
+                ? new Date(conv.lastMessage.createdAt)
+                : new Date(conv.createdAt),
+              isRead: conv.lastMessage?.isRead || true,
+              sentByMe: conv.lastMessage?.senderId === user.id,
+            },
+            unreadCount: conv.unreadCount[user.id] || 0,
+          };
+        });
+
+        setConversations(mappedConversations);
+        setLoading(false);
+        setError(null);
+      });
+
+      // Cleanup subscription on unmount
+      return () => unsubscribe();
+    } catch (err) {
+      console.error('Error loading conversations:', err);
+      setError('Failed to load conversations');
+      setLoading(false);
+      Alert.alert('Error', 'Failed to load conversations. Please try again.');
+    }
+  }, [user?.id]);
 
   const formatTimestamp = (date: Date): string => {
     const now = new Date();
@@ -223,7 +202,20 @@ export const MessagesScreen = ({ navigation }: any) => {
       </View>
 
       {/* Conversations List */}
-      {filteredConversations.length > 0 ? (
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.accent.gold} />
+          <Text style={styles.loadingText}>Loading conversations...</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.emptyState}>
+          <View style={styles.emptyIconContainer}>
+            <Ionicons name="alert-circle-outline" size={64} color={colors.status.error} />
+          </View>
+          <Text style={styles.emptyTitle}>Unable to load conversations</Text>
+          <Text style={styles.emptySubtitle}>{error}</Text>
+        </View>
+      ) : filteredConversations.length > 0 ? (
         <FlatList
           data={filteredConversations}
           renderItem={renderConversation}
@@ -342,6 +334,17 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: colors.border.light,
     marginLeft: spacing.lg + 56 + spacing.md,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing['3xl'],
+  },
+  loadingText: {
+    ...textStyles.body,
+    color: colors.text.secondary,
+    marginTop: spacing.lg,
   },
   emptyState: {
     flex: 1,

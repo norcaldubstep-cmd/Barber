@@ -10,11 +10,16 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '../../components/common/Avatar';
 import { colors, spacing, borderRadius, textStyles, shadows } from '../../theme';
+import { useAuthStore } from '../../store/authStore';
+import { listenToMessages, sendMessage, markConversationAsRead } from '../../services/chatService';
+import { Message as FirebaseMessage } from '../../types/message.types';
 
 interface Message {
   id: string;
@@ -24,76 +29,66 @@ interface Message {
   status?: 'sending' | 'sent' | 'delivered' | 'read';
 }
 
-const MOCK_MESSAGES: Message[] = [
-  {
-    id: '1',
-    text: 'Hey! I saw your portfolio and I love your work!',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24),
-    sentByMe: true,
-    status: 'read',
-  },
-  {
-    id: '2',
-    text: 'Thanks so much! I appreciate that.',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 23),
-    sentByMe: false,
-    status: 'read',
-  },
-  {
-    id: '3',
-    text: 'Do you have any availability this week?',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 23),
-    sentByMe: true,
-    status: 'read',
-  },
-  {
-    id: '4',
-    text: "Absolutely! I have openings on Wednesday and Friday. What time works best for you?",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 22),
-    sentByMe: false,
-    status: 'read',
-  },
-  {
-    id: '5',
-    text: 'Friday afternoon would be perfect!',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 22),
-    sentByMe: true,
-    status: 'read',
-  },
-  {
-    id: '6',
-    text: 'Great! I have 2pm and 4pm available. Which works better?',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 21),
-    sentByMe: false,
-    status: 'read',
-  },
-  {
-    id: '7',
-    text: "2pm works perfectly! I'll take that slot.",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 20),
-    sentByMe: true,
-    status: 'read',
-  },
-  {
-    id: '8',
-    text: 'Perfect! I just sent you a booking confirmation. See you Friday at 2pm!',
-    timestamp: new Date(Date.now() - 1000 * 60 * 5),
-    sentByMe: false,
-    status: 'read',
-  },
-];
-
 export const ChatScreen = ({ route, navigation }: any) => {
-  const { participant } = route.params;
-  const [messages, setMessages] = useState<Message[]>(MOCK_MESSAGES);
+  const { conversationId, participant } = route.params;
+  const { user } = useAuthStore();
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
+  // Load messages and listen for real-time updates
   useEffect(() => {
-    // Auto-scroll to bottom when new messages arrive
-    setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: true });
-    }, 100);
+    if (!user?.id || !conversationId) {
+      setLoading(false);
+      Alert.alert('Error', 'Missing conversation or user information');
+      navigation.goBack();
+      return;
+    }
+
+    try {
+      // Subscribe to real-time messages
+      const unsubscribe = listenToMessages(conversationId, (firebaseMessages) => {
+        // Map Firebase messages to screen format
+        const mappedMessages: Message[] = firebaseMessages.map((msg) => ({
+          id: msg.id,
+          text: msg.content,
+          timestamp: new Date(msg.createdAt),
+          sentByMe: msg.senderId === user.id,
+          status: msg.isRead ? 'read' : 'sent',
+        }));
+
+        setMessages(mappedMessages);
+        setLoading(false);
+
+        // Auto-scroll to bottom
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      });
+
+      // Mark conversation as read when opening
+      markConversationAsRead(conversationId, user.id).catch((err) => {
+        console.error('Error marking conversation as read:', err);
+      });
+
+      // Cleanup subscription on unmount
+      return () => unsubscribe();
+    } catch (err) {
+      console.error('Error loading messages:', err);
+      setLoading(false);
+      Alert.alert('Error', 'Failed to load messages');
+    }
+  }, [conversationId, user?.id]);
+
+  // Auto-scroll when messages update
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
   }, [messages]);
 
   const formatTime = (date: Date): string => {
@@ -125,20 +120,34 @@ export const ChatScreen = ({ route, navigation }: any) => {
     return currentDate.toDateString() !== previousDate.toDateString();
   };
 
-  const handleSend = () => {
-    if (inputText.trim().length === 0) return;
+  const handleSend = async () => {
+    if (inputText.trim().length === 0 || !user?.id || !conversationId) return;
 
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      text: inputText.trim(),
-      timestamp: new Date(),
-      sentByMe: true,
-      status: 'sent',
-    };
-
-    setMessages([...messages, newMessage]);
+    const messageContent = inputText.trim();
     setInputText('');
     Keyboard.dismiss();
+    setSending(true);
+
+    try {
+      // Send message to Firebase
+      const senderName = `${user.firstName} ${user.lastName}`.trim() || 'Unknown User';
+      await sendMessage(
+        conversationId,
+        user.id,
+        senderName,
+        participant.id,
+        messageContent,
+        user.profileImageUrl
+      );
+      // Message will be added to the list automatically via the real-time listener
+    } catch (error) {
+      console.error('Error sending message:', error);
+      Alert.alert('Error', 'Failed to send message. Please try again.');
+      // Restore the input text if sending failed
+      setInputText(messageContent);
+    } finally {
+      setSending(false);
+    }
   };
 
   const renderMessage = ({ item, index }: { item: Message; index: number }) => (
@@ -243,15 +252,29 @@ export const ChatScreen = ({ route, navigation }: any) => {
       </View>
 
       {/* Messages List */}
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.messagesList}
-        showsVerticalScrollIndicator={false}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-      />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.accent.gold} />
+          <Text style={styles.loadingText}>Loading messages...</Text>
+        </View>
+      ) : (
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          renderItem={renderMessage}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.messagesList}
+          showsVerticalScrollIndicator={false}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          ListEmptyComponent={
+            <View style={styles.emptyMessages}>
+              <Ionicons name="chatbubbles-outline" size={64} color={colors.text.secondary} />
+              <Text style={styles.emptyMessagesText}>No messages yet</Text>
+              <Text style={styles.emptyMessagesSubtext}>Start the conversation!</Text>
+            </View>
+          }
+        />
+      )}
 
       {/* Input Bar */}
       <KeyboardAvoidingView
@@ -281,21 +304,25 @@ export const ChatScreen = ({ route, navigation }: any) => {
           <TouchableOpacity
             style={styles.sendButton}
             onPress={handleSend}
-            disabled={inputText.trim().length === 0}
+            disabled={inputText.trim().length === 0 || sending}
           >
             <LinearGradient
               colors={
-                inputText.trim().length > 0
+                inputText.trim().length > 0 && !sending
                   ? ['#D4AF37', '#FFD700']
                   : [colors.border.medium, colors.border.medium]
               }
               style={styles.sendButtonGradient}
             >
-              <Ionicons
-                name="send"
-                size={20}
-                color={inputText.trim().length > 0 ? '#000' : colors.text.secondary}
-              />
+              {sending ? (
+                <ActivityIndicator size="small" color="#000" />
+              ) : (
+                <Ionicons
+                  name="send"
+                  size={20}
+                  color={inputText.trim().length > 0 ? '#000' : colors.text.secondary}
+                />
+              )}
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -329,6 +356,36 @@ const styles = StyleSheet.create({
   messagesList: {
     padding: spacing.lg,
     paddingBottom: spacing.xl,
+    flexGrow: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing['3xl'],
+  },
+  loadingText: {
+    ...textStyles.body,
+    color: colors.text.secondary,
+    marginTop: spacing.lg,
+  },
+  emptyMessages: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing['3xl'],
+    marginTop: spacing['3xl'],
+  },
+  emptyMessagesText: {
+    ...textStyles.h3,
+    fontWeight: '700',
+    marginTop: spacing.lg,
+    color: colors.text.primary,
+  },
+  emptyMessagesSubtext: {
+    ...textStyles.body,
+    color: colors.text.secondary,
+    marginTop: spacing.xs,
   },
   dateHeader: {
     alignItems: 'center',
