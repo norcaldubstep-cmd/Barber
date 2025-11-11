@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,36 +7,29 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Button } from '../../components/common/Button';
 import { colors, spacing, borderRadius, textStyles } from '../../theme';
-
-interface TimeSlot {
-  time: string;
-  available: boolean;
-}
-
-interface Booking {
-  id: string;
-  barberName: string;
-  barberAvatar: string;
-  service: string;
-  date: string;
-  time: string;
-  price: number;
-}
+import { getAvailableTimeSlots, cancelBooking, createBooking } from '../../services/bookingService';
+import { Booking, TimeSlot } from '../../types/booking.types';
+import { useAuthStore } from '../../store/authStore';
 
 export const RescheduleBookingScreen = ({ navigation, route }: any) => {
   const { booking }: { booking: Booking } = route.params || {};
+  const { user } = useAuthStore();
 
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingTimeSlots, setLoadingTimeSlots] = useState(false);
+  const [availableDates, setAvailableDates] = useState<Date[]>([]);
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
 
-  // Mock available dates (next 14 days)
-  const getAvailableDates = (): Date[] => {
+  // Generate next 14 days for selection (will check availability when date is clicked)
+  useEffect(() => {
     const dates: Date[] = [];
     const today = new Date();
     for (let i = 1; i <= 14; i++) {
@@ -44,33 +37,68 @@ export const RescheduleBookingScreen = ({ navigation, route }: any) => {
       date.setDate(today.getDate() + i);
       dates.push(date);
     }
-    return dates;
-  };
+    setAvailableDates(dates);
 
-  // Mock time slots
-  const getTimeSlots = (): TimeSlot[] => {
-    const slots: TimeSlot[] = [];
-    const hours = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
+    // Set tomorrow as default selected date
+    if (dates.length > 0) {
+      setSelectedDate(dates[0]);
+    }
+  }, []);
 
-    hours.forEach((hour) => {
-      ['00', '30'].forEach((minutes) => {
-        const time = `${hour.toString().padStart(2, '0')}:${minutes}`;
-        // Randomly mark some as unavailable for demo
-        const available = Math.random() > 0.3;
-        slots.push({ time, available });
-      });
-    });
+  // Fetch time slots when date changes
+  useEffect(() => {
+    const fetchTimeSlots = async () => {
+      if (!booking || !selectedDate) return;
 
-    return slots;
-  };
+      try {
+        setLoadingTimeSlots(true);
+        const dateString = selectedDate.toISOString().split('T')[0];
+        const slots = await getAvailableTimeSlots(booking.barberId, dateString);
 
-  const availableDates = getAvailableDates();
-  const timeSlots = getTimeSlots();
+        // Convert to display format (12-hour time)
+        const formattedSlots = slots.map(slot => ({
+          time: formatTime12Hour(slot.time),
+          isAvailable: slot.isAvailable,
+          barberId: slot.barberId,
+        }));
+
+        setTimeSlots(formattedSlots);
+      } catch (error) {
+        console.error('Error fetching time slots:', error);
+        Alert.alert('Error', 'Failed to load available time slots');
+        setTimeSlots([]);
+      } finally {
+        setLoadingTimeSlots(false);
+      }
+    };
+
+    fetchTimeSlots();
+  }, [selectedDate, booking]);
 
   const formatDate = (date: Date): string => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return `${days[date.getDay()]}, ${months[date.getMonth()]} ${date.getDate()}`;
+  };
+
+  const formatTime12Hour = (time24: string): string => {
+    const [hours, minutes] = time24.split(':').map(Number);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const hours12 = hours % 12 || 12;
+    return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`;
+  };
+
+  const convert12to24Hour = (time12: string): string => {
+    const [time, period] = time12.split(' ');
+    let [hours, minutes] = time.split(':').map(Number);
+
+    if (period === 'PM' && hours !== 12) {
+      hours += 12;
+    } else if (period === 'AM' && hours === 12) {
+      hours = 0;
+    }
+
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   };
 
   const handleReschedule = async () => {
@@ -79,11 +107,33 @@ export const RescheduleBookingScreen = ({ navigation, route }: any) => {
       return;
     }
 
-    setLoading(true);
+    if (!user || !booking) {
+      Alert.alert('Error', 'Missing required information');
+      return;
+    }
 
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      setLoading(true);
+
+      const dateString = selectedDate.toISOString().split('T')[0];
+      const startTime24 = convert12to24Hour(selectedTime);
+
+      // Cancel old booking and create new one
+      await cancelBooking(booking.id);
+
+      await createBooking(
+        user.id,
+        user.displayName || 'Guest',
+        booking.barberId,
+        booking.barberName,
+        booking.services,
+        dateString,
+        startTime24,
+        booking.notes,
+        user.profileImage,
+        booking.barberAvatar
+      );
+
       Alert.alert(
         'Booking Rescheduled',
         `Your appointment has been rescheduled to ${formatDate(selectedDate)} at ${selectedTime}.`,
@@ -94,7 +144,16 @@ export const RescheduleBookingScreen = ({ navigation, route }: any) => {
           },
         ]
       );
-    }, 1500);
+    } catch (error) {
+      console.error('Reschedule error:', error);
+      Alert.alert(
+        'Reschedule Failed',
+        'Failed to reschedule booking. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -118,19 +177,19 @@ export const RescheduleBookingScreen = ({ navigation, route }: any) => {
           <View style={styles.currentBookingInfo}>
             <Text style={styles.currentBookingText}>
               <Text style={styles.label}>Barber: </Text>
-              {booking?.barberName || 'Mike Johnson'}
+              {booking?.barberName}
             </Text>
             <Text style={styles.currentBookingText}>
               <Text style={styles.label}>Service: </Text>
-              {booking?.service || 'Haircut & Beard Trim'}
+              {booking?.services[0]?.name}
             </Text>
             <Text style={styles.currentBookingText}>
               <Text style={styles.label}>Date: </Text>
-              {booking?.date || 'Thu, Nov 14'}
+              {booking?.date && new Date(booking.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
             </Text>
             <Text style={styles.currentBookingText}>
               <Text style={styles.label}>Time: </Text>
-              {booking?.time || '10:00 AM'}
+              {booking?.startTime && formatTime12Hour(booking.startTime)}
             </Text>
           </View>
         </View>
@@ -189,42 +248,55 @@ export const RescheduleBookingScreen = ({ navigation, route }: any) => {
         {/* Select Time Slot */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Select Time Slot</Text>
-          <View style={styles.timeSlotsGrid}>
-            {timeSlots.map((slot, index) => {
-              const isSelected = selectedTime === slot.time;
+          {loadingTimeSlots ? (
+            <View style={styles.timeSlotsLoading}>
+              <ActivityIndicator size="large" color={colors.accent.gold} />
+              <Text style={styles.loadingText}>Loading available times...</Text>
+            </View>
+          ) : timeSlots.length === 0 ? (
+            <View style={styles.noSlotsContainer}>
+              <Ionicons name="calendar-outline" size={48} color={colors.text.secondary} />
+              <Text style={styles.noSlotsText}>No available time slots for this date</Text>
+              <Text style={styles.noSlotsSubtext}>Please select a different date</Text>
+            </View>
+          ) : (
+            <View style={styles.timeSlotsGrid}>
+              {timeSlots.map((slot, index) => {
+                const isSelected = selectedTime === slot.time;
 
-              if (!slot.available) {
-                return (
-                  <View key={index} style={[styles.timeSlot, styles.timeSlotUnavailable]}>
-                    <Text style={styles.timeSlotTextUnavailable}>{slot.time}</Text>
-                  </View>
-                );
-              }
-
-              return (
-                <TouchableOpacity
-                  key={index}
-                  onPress={() => setSelectedTime(slot.time)}
-                  activeOpacity={0.7}
-                >
-                  {isSelected ? (
-                    <LinearGradient
-                      colors={['#D4AF37', '#FFD700']}
-                      style={styles.timeSlot}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                    >
-                      <Text style={[styles.timeSlotText, { color: '#000' }]}>{slot.time}</Text>
-                    </LinearGradient>
-                  ) : (
-                    <View style={[styles.timeSlot, styles.timeSlotAvailable]}>
-                      <Text style={styles.timeSlotText}>{slot.time}</Text>
+                if (!slot.isAvailable) {
+                  return (
+                    <View key={index} style={[styles.timeSlot, styles.timeSlotUnavailable]}>
+                      <Text style={styles.timeSlotTextUnavailable}>{slot.time}</Text>
                     </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+                  );
+                }
+
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    onPress={() => setSelectedTime(slot.time)}
+                    activeOpacity={0.7}
+                  >
+                    {isSelected ? (
+                      <LinearGradient
+                        colors={['#D4AF37', '#FFD700']}
+                        style={styles.timeSlot}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                      >
+                        <Text style={[styles.timeSlotText, { color: '#000' }]}>{slot.time}</Text>
+                      </LinearGradient>
+                    ) : (
+                      <View style={[styles.timeSlot, styles.timeSlotAvailable]}>
+                        <Text style={styles.timeSlotText}>{slot.time}</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
         </View>
 
         {/* Reschedule Policy */}
@@ -404,5 +476,29 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     borderTopWidth: 1,
     borderTopColor: colors.border.light,
+  },
+  timeSlotsLoading: {
+    paddingVertical: spacing['3xl'],
+    alignItems: 'center',
+  },
+  loadingText: {
+    ...textStyles.body,
+    color: colors.text.secondary,
+    marginTop: spacing.md,
+  },
+  noSlotsContainer: {
+    paddingVertical: spacing['3xl'],
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  noSlotsText: {
+    ...textStyles.body,
+    fontWeight: '600',
+    color: colors.text.primary,
+    marginTop: spacing.md,
+  },
+  noSlotsSubtext: {
+    ...textStyles.bodySmall,
+    color: colors.text.secondary,
   },
 });

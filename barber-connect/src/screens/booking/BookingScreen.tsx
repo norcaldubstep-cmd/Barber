@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   FlatList,
   TextInput,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,22 +18,81 @@ import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { colors, spacing, borderRadius, textStyles, shadows } from '../../theme';
 import { BarberProfile, Service } from '../../types/barber.types';
-import { MOCK_BARBERS } from '../../utils/mockData';
-
-interface TimeSlot {
-  time: string;
-  available: boolean;
-}
+import { getBarberProfile } from '../../services/barberService';
+import { createBooking, getAvailableTimeSlots } from '../../services/bookingService';
+import { TimeSlot } from '../../types/booking.types';
+import { useAuthStore } from '../../store/authStore';
 
 export const BookingScreen = ({ route, navigation }: any) => {
   const { barberId } = route.params;
-  const barber = MOCK_BARBERS.find((b) => b.id === barberId) || MOCK_BARBERS[0];
+  const { user } = useAuthStore();
 
+  const [barber, setBarber] = useState<BarberProfile | null>(null);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
   const [step, setStep] = useState<'service' | 'datetime' | 'confirm'>('service');
+  const [loading, setLoading] = useState(false);
+  const [loadingBarber, setLoadingBarber] = useState(true);
+  const [loadingTimeSlots, setLoadingTimeSlots] = useState(false);
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
+
+  // Fetch barber profile on mount
+  useEffect(() => {
+    const fetchBarber = async () => {
+      try {
+        setLoadingBarber(true);
+        const barberProfile = await getBarberProfile(barberId);
+        if (barberProfile) {
+          setBarber(barberProfile);
+        } else {
+          Alert.alert('Error', 'Barber not found');
+          navigation.goBack();
+        }
+      } catch (error) {
+        console.error('Error fetching barber:', error);
+        Alert.alert('Error', 'Failed to load barber profile. Please try again.');
+        navigation.goBack();
+      } finally {
+        setLoadingBarber(false);
+      }
+    };
+
+    fetchBarber();
+  }, [barberId]);
+
+  // Fetch available time slots when date changes
+  useEffect(() => {
+    const fetchTimeSlots = async () => {
+      if (!barberId || !selectedDate) return;
+
+      try {
+        setLoadingTimeSlots(true);
+        const dateString = selectedDate.toISOString().split('T')[0];
+        const slots = await getAvailableTimeSlots(barberId, dateString);
+
+        // Convert to display format (12-hour time)
+        const formattedSlots = slots.map(slot => ({
+          time: formatTime12Hour(slot.time),
+          isAvailable: slot.isAvailable,
+          barberId: slot.barberId,
+        }));
+
+        setTimeSlots(formattedSlots);
+      } catch (error) {
+        console.error('Error fetching time slots:', error);
+        Alert.alert('Error', 'Failed to load available time slots');
+        setTimeSlots([]);
+      } finally {
+        setLoadingTimeSlots(false);
+      }
+    };
+
+    if (step === 'datetime') {
+      fetchTimeSlots();
+    }
+  }, [barberId, selectedDate, step]);
 
   // Generate next 14 days for calendar
   const dates = Array.from({ length: 14 }, (_, i) => {
@@ -40,24 +101,6 @@ export const BookingScreen = ({ route, navigation }: any) => {
     return date;
   });
 
-  // Generate time slots (9am - 6pm, 30min intervals)
-  const generateTimeSlots = (): TimeSlot[] => {
-    const slots: TimeSlot[] = [];
-    const startHour = 9;
-    const endHour = 18;
-
-    for (let hour = startHour; hour < endHour; hour++) {
-      for (let minute = 0; minute < 60; minute += 30) {
-        const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-        const formattedTime = formatTime12Hour(time);
-        // Randomly mark some as unavailable for demo
-        const available = Math.random() > 0.3;
-        slots.push({ time: formattedTime, available });
-      }
-    }
-    return slots;
-  };
-
   const formatTime12Hour = (time24: string): string => {
     const [hours, minutes] = time24.split(':').map(Number);
     const period = hours >= 12 ? 'PM' : 'AM';
@@ -65,7 +108,18 @@ export const BookingScreen = ({ route, navigation }: any) => {
     return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`;
   };
 
-  const timeSlots = generateTimeSlots();
+  const convert12to24Hour = (time12: string): string => {
+    const [time, period] = time12.split(' ');
+    let [hours, minutes] = time.split(':').map(Number);
+
+    if (period === 'PM' && hours !== 12) {
+      hours += 12;
+    } else if (period === 'AM' && hours === 12) {
+      hours = 0;
+    }
+
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  };
 
   const formatDate = (date: Date): string => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -95,19 +149,73 @@ export const BookingScreen = ({ route, navigation }: any) => {
   };
 
   const handleBooking = async () => {
-    // Simulate booking
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    if (!user || !barber || !selectedService || !selectedDate || !selectedTime) {
+      Alert.alert('Error', 'Missing required booking information');
+      return;
+    }
 
-    // Navigate to success screen or bookings list
-    navigation.navigate('MainTabs', {
-      screen: 'Profile',
-      params: { bookingConfirmed: true },
-    });
+    try {
+      setLoading(true);
+
+      const dateString = selectedDate.toISOString().split('T')[0];
+      const startTime24 = convert12to24Hour(selectedTime);
+
+      await createBooking(
+        user.id,
+        user.displayName || 'Guest',
+        barberId,
+        barber.displayName,
+        [selectedService],
+        dateString,
+        startTime24,
+        notes || undefined,
+        user.profileImage,
+        barber.profileImage
+      );
+
+      Alert.alert(
+        'Booking Confirmed!',
+        `Your appointment with ${barber.displayName} has been booked for ${formatFullDate(selectedDate)} at ${selectedTime}.`,
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.navigate('MainTabs', {
+              screen: 'Profile',
+              params: { bookingConfirmed: true },
+            }),
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Booking error:', error);
+      Alert.alert(
+        'Booking Failed',
+        'Failed to create booking. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const calculateTotal = (): number => {
     return selectedService?.price || 0;
   };
+
+  if (loadingBarber) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.accent.gold} />
+          <Text style={styles.loadingText}>Loading barber profile...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!barber) {
+    return null;
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -265,7 +373,10 @@ export const BookingScreen = ({ route, navigation }: any) => {
                 contentContainerStyle={styles.datesList}
                 renderItem={({ item }) => (
                   <TouchableOpacity
-                    onPress={() => setSelectedDate(item)}
+                    onPress={() => {
+                      setSelectedDate(item);
+                      setSelectedTime(null); // Reset time when date changes
+                    }}
                     activeOpacity={0.7}
                   >
                     <LinearGradient
@@ -306,39 +417,52 @@ export const BookingScreen = ({ route, navigation }: any) => {
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Select Time</Text>
-              <View style={styles.timeSlotsGrid}>
-                {timeSlots.map((slot, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    onPress={() => slot.available && setSelectedTime(slot.time)}
-                    disabled={!slot.available}
-                    activeOpacity={0.7}
-                  >
-                    <LinearGradient
-                      colors={
-                        selectedTime === slot.time
-                          ? ['#D4AF37', '#FFD700']
-                          : [colors.background.secondary, colors.background.secondary]
-                      }
-                      style={[
-                        styles.timeSlot,
-                        !slot.available && styles.timeSlotDisabled,
-                        selectedTime === slot.time && styles.timeSlotSelected,
-                      ]}
+              {loadingTimeSlots ? (
+                <View style={styles.timeSlotsLoading}>
+                  <ActivityIndicator size="large" color={colors.accent.gold} />
+                  <Text style={styles.loadingText}>Loading available times...</Text>
+                </View>
+              ) : timeSlots.length === 0 ? (
+                <View style={styles.noSlotsContainer}>
+                  <Ionicons name="calendar-outline" size={48} color={colors.text.secondary} />
+                  <Text style={styles.noSlotsText}>No available time slots for this date</Text>
+                  <Text style={styles.noSlotsSubtext}>Please select a different date</Text>
+                </View>
+              ) : (
+                <View style={styles.timeSlotsGrid}>
+                  {timeSlots.map((slot, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      onPress={() => slot.isAvailable && setSelectedTime(slot.time)}
+                      disabled={!slot.isAvailable}
+                      activeOpacity={0.7}
                     >
-                      <Text
+                      <LinearGradient
+                        colors={
+                          selectedTime === slot.time
+                            ? ['#D4AF37', '#FFD700']
+                            : [colors.background.secondary, colors.background.secondary]
+                        }
                         style={[
-                          styles.timeText,
-                          !slot.available && styles.timeTextDisabled,
-                          selectedTime === slot.time && styles.timeTextSelected,
+                          styles.timeSlot,
+                          !slot.isAvailable && styles.timeSlotDisabled,
+                          selectedTime === slot.time && styles.timeSlotSelected,
                         ]}
                       >
-                        {slot.time}
-                      </Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                ))}
-              </View>
+                        <Text
+                          style={[
+                            styles.timeText,
+                            !slot.isAvailable && styles.timeTextDisabled,
+                            selectedTime === slot.time && styles.timeTextSelected,
+                          ]}
+                        >
+                          {slot.time}
+                        </Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
             </View>
           </>
         )}
@@ -421,7 +545,9 @@ export const BookingScreen = ({ route, navigation }: any) => {
             onPress={step === 'confirm' ? handleBooking : handleContinue}
             variant="gradient"
             size="large"
+            loading={loading}
             disabled={
+              loading ||
               (step === 'service' && !selectedService) ||
               (step === 'datetime' && (!selectedDate || !selectedTime))
             }
@@ -622,4 +748,34 @@ const styles = StyleSheet.create({
   actionButtons: { flexDirection: 'row', gap: spacing.sm },
   backActionButton: { flex: 1 },
   continueButton: { flex: 2 },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing['3xl'],
+  },
+  loadingText: {
+    ...textStyles.body,
+    color: colors.text.secondary,
+    marginTop: spacing.md,
+  },
+  timeSlotsLoading: {
+    paddingVertical: spacing['3xl'],
+    alignItems: 'center',
+  },
+  noSlotsContainer: {
+    paddingVertical: spacing['3xl'],
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  noSlotsText: {
+    ...textStyles.body,
+    fontWeight: '600',
+    color: colors.text.primary,
+    marginTop: spacing.md,
+  },
+  noSlotsSubtext: {
+    ...textStyles.bodySmall,
+    color: colors.text.secondary,
+  },
 });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   ScrollView,
   TouchableOpacity,
   FlatList,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,116 +18,78 @@ import { Card } from '../../components/common/Card';
 import { colors, spacing, borderRadius, textStyles, shadows } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
 import { UserRole } from '../../types/user.types';
-
-type BookingStatus = 'upcoming' | 'completed' | 'cancelled';
-
-interface Booking {
-  id: string;
-  barber: {
-    id: string;
-    name: string;
-    avatar?: string;
-    isVerified: boolean;
-    businessName?: string;
-  };
-  client?: {
-    id: string;
-    name: string;
-    avatar?: string;
-  };
-  service: {
-    name: string;
-    duration: number;
-    price: number;
-  };
-  date: Date;
-  time: string;
-  status: BookingStatus;
-  notes?: string;
-}
-
-const MOCK_BOOKINGS: Booking[] = [
-  {
-    id: '1',
-    barber: {
-      id: 'b1',
-      name: 'Mike the Barber',
-      isVerified: true,
-      businessName: 'Elite Cuts Studio',
-    },
-    service: {
-      name: 'Premium Fade',
-      duration: 45,
-      price: 65,
-    },
-    date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 2),
-    time: '2:00 PM',
-    status: 'upcoming',
-    notes: 'Please do a skin fade on the sides',
-  },
-  {
-    id: '2',
-    barber: {
-      id: 'b2',
-      name: 'Carlos Rodriguez',
-      isVerified: true,
-      businessName: 'Fresh Fade Barbershop',
-    },
-    service: {
-      name: 'Haircut & Beard Trim',
-      duration: 60,
-      price: 85,
-    },
-    date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 5),
-    time: '10:30 AM',
-    status: 'upcoming',
-  },
-  {
-    id: '3',
-    barber: {
-      id: 'b3',
-      name: 'James Smith',
-      isVerified: false,
-    },
-    service: {
-      name: 'Classic Cut',
-      duration: 30,
-      price: 45,
-    },
-    date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7),
-    time: '4:00 PM',
-    status: 'completed',
-  },
-  {
-    id: '4',
-    barber: {
-      id: 'b1',
-      name: 'Mike the Barber',
-      isVerified: true,
-    },
-    service: {
-      name: 'Buzz Cut',
-      duration: 20,
-      price: 35,
-    },
-    date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 14),
-    time: '3:30 PM',
-    status: 'completed',
-  },
-];
+import { getClientBookings, cancelBooking } from '../../services/bookingService';
+import { Booking, BookingStatus } from '../../types/booking.types';
 
 export const BookingsScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
   const [selectedTab, setSelectedTab] = useState<'upcoming' | 'past'>('upcoming');
-  const [bookings] = useState<Booking[]>(MOCK_BOOKINGS);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const isBarber = user?.role === UserRole.BARBER;
 
-  const upcomingBookings = bookings.filter((b) => b.status === 'upcoming');
-  const pastBookings = bookings.filter((b) => b.status !== 'upcoming');
+  // Fetch bookings
+  useEffect(() => {
+    fetchBookings();
+  }, [user]);
+
+  const fetchBookings = async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      const allBookings = await getClientBookings(user.id);
+      setBookings(allBookings);
+    } catch (error) {
+      console.error('Error fetching bookings:', error);
+      Alert.alert('Error', 'Failed to load bookings. Please try again.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchBookings();
+  };
+
+  const handleCancelBooking = (booking: Booking) => {
+    Alert.alert(
+      'Cancel Booking',
+      `Are you sure you want to cancel your appointment with ${booking.barberName}?`,
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes, Cancel',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await cancelBooking(booking.id);
+              Alert.alert('Success', 'Your booking has been cancelled');
+              fetchBookings();
+            } catch (error) {
+              console.error('Error cancelling booking:', error);
+              Alert.alert('Error', 'Failed to cancel booking. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const upcomingBookings = bookings.filter(
+    (b) => b.status === BookingStatus.PENDING || b.status === BookingStatus.CONFIRMED
+  );
+  const pastBookings = bookings.filter(
+    (b) => b.status === BookingStatus.COMPLETED || b.status === BookingStatus.CANCELLED
+  );
   const displayBookings = selectedTab === 'upcoming' ? upcomingBookings : pastBookings;
 
-  const formatDate = (date: Date): string => {
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -140,37 +104,41 @@ export const BookingsScreen = ({ navigation }: any) => {
     });
   };
 
-  const getDaysUntil = (date: Date): number => {
+  const getDaysUntil = (dateString: string): number => {
+    const date = new Date(dateString);
     const today = new Date();
     const diff = date.getTime() - today.getTime();
     return Math.ceil(diff / (1000 * 60 * 60 * 24));
   };
 
+  const formatTime12Hour = (time24: string): string => {
+    const [hours, minutes] = time24.split(':').map(Number);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const hours12 = hours % 12 || 12;
+    return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`;
+  };
+
   const renderBooking = ({ item }: { item: Booking }) => {
     const daysUntil = getDaysUntil(item.date);
-    const isUpcoming = item.status === 'upcoming';
+    const isUpcoming = item.status === BookingStatus.PENDING || item.status === BookingStatus.CONFIRMED;
+    const primaryService = item.services[0];
 
     return (
       <Card style={styles.bookingCard}>
         <View style={styles.bookingHeader}>
           <Avatar
-            name={item.barber.name}
+            name={item.barberName}
             size="lg"
-            verified={item.barber.isVerified}
-            showGradientBorder={item.barber.isVerified}
+            verified={true}
+            showGradientBorder={true}
+            imageUrl={item.barberAvatar}
           />
           <View style={styles.bookingHeaderText}>
-            <Text style={styles.barberName}>{item.barber.name}</Text>
-            {item.barber.businessName && (
-              <View style={styles.businessRow}>
-                <Ionicons name="business" size={14} color={colors.text.secondary} />
-                <Text style={styles.businessText}>{item.barber.businessName}</Text>
-              </View>
-            )}
+            <Text style={styles.barberName}>{item.barberName}</Text>
             <View style={styles.serviceRow}>
-              <Text style={styles.serviceName}>{item.service.name}</Text>
+              <Text style={styles.serviceName}>{primaryService.name}</Text>
               <Text style={styles.serviceMeta}>
-                {item.service.duration} min • ${item.service.price}
+                {item.totalDuration} min • ${item.totalPrice}
               </Text>
             </View>
           </View>
@@ -200,7 +168,7 @@ export const BookingsScreen = ({ navigation }: any) => {
             </View>
             <View style={styles.detailText}>
               <Text style={styles.detailLabel}>Time</Text>
-              <Text style={styles.detailValue}>{item.time}</Text>
+              <Text style={styles.detailValue}>{formatTime12Hour(item.startTime)}</Text>
             </View>
           </View>
 
@@ -224,7 +192,7 @@ export const BookingsScreen = ({ navigation }: any) => {
             />
             <Button
               title="Message"
-              onPress={() => navigation.navigate('Chat', { participant: item.barber })}
+              onPress={() => navigation.navigate('Chat', { participantId: item.barberId, participantName: item.barberName })}
               variant="outline"
               size="small"
               style={styles.actionButton}
@@ -232,7 +200,7 @@ export const BookingsScreen = ({ navigation }: any) => {
             />
             <Button
               title="Cancel"
-              onPress={() => console.log('Cancel')}
+              onPress={() => handleCancelBooking(item)}
               variant="danger"
               size="small"
               style={styles.cancelButton}
@@ -241,11 +209,11 @@ export const BookingsScreen = ({ navigation }: any) => {
           </View>
         )}
 
-        {item.status === 'completed' && (
+        {item.status === BookingStatus.COMPLETED && (
           <View style={styles.bookingActions}>
             <Button
               title="Book Again"
-              onPress={() => navigation.navigate('Booking', { barberId: item.barber.id })}
+              onPress={() => navigation.navigate('Booking', { barberId: item.barberId })}
               variant="gradient"
               size="small"
               style={styles.bookAgainButton}
@@ -325,13 +293,20 @@ export const BookingsScreen = ({ navigation }: any) => {
       </View>
 
       {/* Bookings List */}
-      {displayBookings.length > 0 ? (
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.accent.gold} />
+          <Text style={styles.loadingText}>Loading bookings...</Text>
+        </View>
+      ) : displayBookings.length > 0 ? (
         <FlatList
           data={displayBookings}
           renderItem={renderBooking}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
         />
       ) : (
         <View style={styles.emptyState}>
@@ -464,4 +439,15 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   discoverButton: { minWidth: 200 },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing['3xl'],
+  },
+  loadingText: {
+    ...textStyles.body,
+    color: colors.text.secondary,
+    marginTop: spacing.md,
+  },
 });
