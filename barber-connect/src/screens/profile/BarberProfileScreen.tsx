@@ -294,7 +294,11 @@ export const BarberProfileScreen = ({ route, navigation }: any) => {
                 />
                 <TouchableOpacity
                   style={styles.messageButton}
-                  onPress={() => navigation.navigate('Messages', { barberId: barber.id })}
+                  onPress={() => navigation.navigate('Chat', {
+                    participantId: barber.id,
+                    participantName: barber.displayName,
+                    participantAvatar: barber.profileImage
+                  })}
                 >
                   <Ionicons name="chatbubble" size={24} color={colors.text.primary} />
                 </TouchableOpacity>

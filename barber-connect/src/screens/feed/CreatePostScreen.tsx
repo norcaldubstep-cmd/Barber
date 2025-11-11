@@ -148,7 +148,7 @@ export const CreatePostScreen = ({ navigation }: any) => {
         {
           text: 'OK',
           onPress: () => {
-            navigation.navigate('Feed');
+            navigation.navigate('MainTabs', { screen: 'FeedTab' });
           },
         },
       ]);

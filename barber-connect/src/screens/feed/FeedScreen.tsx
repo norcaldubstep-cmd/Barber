@@ -433,7 +433,7 @@ export const FeedScreen = ({ navigation }: any) => {
       {/* FAB - Create Post */}
       <TouchableOpacity
         style={styles.fab}
-        onPress={() => navigation.navigate('CreatePost')}
+        onPress={() => navigation.navigate('MainTabs', { screen: 'CreateTab' })}
         activeOpacity={0.9}
       >
         <LinearGradient

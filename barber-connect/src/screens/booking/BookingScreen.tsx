@@ -180,7 +180,7 @@ export const BookingScreen = ({ route, navigation }: any) => {
           {
             text: 'OK',
             onPress: () => navigation.navigate('MainTabs', {
-              screen: 'Profile',
+              screen: 'BookingsTab',
               params: { bookingConfirmed: true },
             }),
           },
