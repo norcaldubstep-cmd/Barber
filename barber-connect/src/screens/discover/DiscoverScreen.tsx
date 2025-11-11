@@ -20,9 +20,10 @@ import { colors, spacing, borderRadius, textStyles, shadows } from '../../theme'
 import { BarberProfile, BarberSearchFilters, SPECIALTIES } from '../../types/barber.types';
 import { DISTANCE_OPTIONS } from '../../types/location.types';
 import { PROMOTION_PLANS, PromotionTier } from '../../types/promotion.types';
-import { getCurrentLocation, calculateDistance, formatDistance } from '../../utils/location.utils';
+import { calculateDistance, formatDistance } from '../../utils/location.utils';
 import { searchBarbers, getNearbyBarbers, getTopRatedBarbers } from '../../services/barberService';
 import { useAuthStore } from '../../store/authStore';
+import { getLocationOrDefault, getLocationStatusMessage, checkLocationPermission } from '../../services/locationService';
 
 export const DiscoverScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
@@ -34,15 +35,13 @@ export const DiscoverScreen = ({ navigation }: any) => {
   const [refreshing, setRefreshing] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [locationStatus, setLocationStatus] = useState<string>('');
 
   // Filters
   const [filters, setFilters] = useState<BarberSearchFilters>({
     maxDistance: 25,
     sortBy: 'promoted',
   });
-
-  // Default location (San Francisco) if geolocation not available
-  const DEFAULT_LOCATION = { latitude: 37.7749, longitude: -122.4194 };
 
   useEffect(() => {
     loadLocation();
@@ -69,27 +68,34 @@ export const DiscoverScreen = ({ navigation }: any) => {
     applyFilters();
   }, [barbers]);
 
-  const loadLocation = async () => {
-    const location = await getCurrentLocation();
-    if (location) {
+  const loadLocation = async (forceRefresh = false) => {
+    try {
+      // Get location (cached, current, or default)
+      const location = await getLocationOrDefault(forceRefresh);
       setUserLocation(location);
-    } else {
-      // Use default location if geolocation is not available
-      setUserLocation(DEFAULT_LOCATION);
+
+      // Get status message for UI
+      const status = await getLocationStatusMessage();
+      setLocationStatus(status);
+    } catch (err) {
+      console.error('Error loading location:', err);
+      // Even if there's an error, getLocationOrDefault should return default location
+      const location = await getLocationOrDefault();
+      setUserLocation(location);
     }
   };
 
   const loadBarbers = async () => {
+    if (!userLocation) return;
+
     setIsLoading(true);
     setError(null);
     try {
-      const location = userLocation || DEFAULT_LOCATION;
-
       // Build filter object with location
       const searchFilters: BarberSearchFilters = {
         ...filters,
         query: searchQuery || undefined,
-        location: location,
+        location: userLocation,
       };
 
       // Fetch barbers using Firebase
@@ -105,7 +111,8 @@ export const DiscoverScreen = ({ navigation }: any) => {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadLocation();
+    // Force refresh location to get fresh GPS reading
+    await loadLocation(true);
     await loadBarbers();
     setRefreshing(false);
   };
@@ -293,12 +300,12 @@ export const DiscoverScreen = ({ navigation }: any) => {
 
       {/* Location Bar */}
       {userLocation && (
-        <TouchableOpacity style={styles.locationBar} onPress={loadLocation}>
+        <TouchableOpacity style={styles.locationBar} onPress={() => loadLocation(true)}>
           <Ionicons name="location" size={16} color={colors.accent.gold} />
           <Text style={styles.locationText}>
             {filters.maxDistance ? `Within ${filters.maxDistance} miles` : 'Any distance'}
           </Text>
-          <Ionicons name="chevron-down" size={16} color={colors.text.secondary} />
+          <Ionicons name="refresh" size={16} color={colors.text.secondary} />
         </TouchableOpacity>
       )}
 

@@ -20,33 +20,51 @@ import { useAuthStore } from '../../store/authStore';
 import { BarberProfile } from '../../types/barber.types';
 import { getNearbyBarbers, getTopRatedBarbers, getBarberProfile } from '../../services/barberService';
 import { getUserFavorites } from '../../services/usersService';
+import { getLocationOrDefault } from '../../services/locationService';
 
 export const ClientHomeScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
   const [nearbyBarbers, setNearbyBarbers] = useState<BarberProfile[]>([]);
   const [favoriteBarbers, setFavoriteBarbers] = useState<BarberProfile[]>([]);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Default location (San Francisco) if geolocation not available
-  const DEFAULT_LOCATION = { latitude: 37.7749, longitude: -122.4194 };
+  useEffect(() => {
+    loadLocation();
+  }, []);
 
   useEffect(() => {
-    loadData();
-  }, [user]);
+    if (user && userLocation) {
+      loadData();
+    }
+  }, [user, userLocation]);
+
+  const loadLocation = async (forceRefresh = false) => {
+    try {
+      // Get location (cached, current, or default)
+      const location = await getLocationOrDefault(forceRefresh);
+      setUserLocation(location);
+    } catch (err) {
+      console.error('Error loading location:', err);
+      // Even if there's an error, getLocationOrDefault should return default location
+      const location = await getLocationOrDefault();
+      setUserLocation(location);
+    }
+  };
 
   const loadData = async () => {
-    if (!user) return;
+    if (!user || !userLocation) return;
 
     setIsLoading(true);
     setError(null);
 
     try {
-      // Load nearby barbers using default location
+      // Load nearby barbers using real location
       const nearby = await getNearbyBarbers(
-        DEFAULT_LOCATION.latitude,
-        DEFAULT_LOCATION.longitude,
+        userLocation.latitude,
+        userLocation.longitude,
         25,
         3
       );
@@ -68,6 +86,8 @@ export const ClientHomeScreen = ({ navigation }: any) => {
 
   const onRefresh = async () => {
     setRefreshing(true);
+    // Force refresh location to get fresh GPS reading
+    await loadLocation(true);
     await loadData();
     setRefreshing(false);
   };

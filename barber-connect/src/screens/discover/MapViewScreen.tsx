@@ -16,6 +16,7 @@ import { BarberProfile } from '../../types/barber.types';
 import { getNearbyBarbers } from '../../services/barberService';
 import { useAuthStore } from '../../store/authStore';
 import { formatDistance } from '../../utils/location.utils';
+import { getLocationOrDefault } from '../../services/locationService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -23,32 +24,65 @@ export const MapViewScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
   const [barbers, setBarbers] = useState<BarberProfile[]>([]);
   const [selectedBarber, setSelectedBarber] = useState<BarberProfile | null>(null);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Default location (San Francisco) if geolocation not available
-  const DEFAULT_LOCATION = { latitude: 37.7749, longitude: -122.4194 };
-
-  const [mapRegion] = useState({
-    latitude: DEFAULT_LOCATION.latitude,
-    longitude: DEFAULT_LOCATION.longitude,
+  const [mapRegion, setMapRegion] = useState({
+    latitude: 37.7749,
+    longitude: -122.4194,
     latitudeDelta: 0.01,
     longitudeDelta: 0.01,
   });
 
   useEffect(() => {
-    loadNearbyBarbers();
+    loadLocation();
   }, []);
 
+  useEffect(() => {
+    if (userLocation) {
+      loadNearbyBarbers();
+    }
+  }, [userLocation]);
+
+  const loadLocation = async (forceRefresh = false) => {
+    try {
+      // Get location (cached, current, or default)
+      const location = await getLocationOrDefault(forceRefresh);
+      setUserLocation(location);
+
+      // Update map region to center on user's location
+      setMapRegion({
+        latitude: location.latitude,
+        longitude: location.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+    } catch (err) {
+      console.error('Error loading location:', err);
+      // Even if there's an error, getLocationOrDefault should return default location
+      const location = await getLocationOrDefault();
+      setUserLocation(location);
+      setMapRegion({
+        latitude: location.latitude,
+        longitude: location.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+    }
+  };
+
   const loadNearbyBarbers = async () => {
+    if (!userLocation) return;
+
     setIsLoading(true);
     setError(null);
 
     try {
-      // Fetch nearby barbers using Firebase
+      // Fetch nearby barbers using Firebase with real location
       const nearby = await getNearbyBarbers(
-        DEFAULT_LOCATION.latitude,
-        DEFAULT_LOCATION.longitude,
+        userLocation.latitude,
+        userLocation.longitude,
         10,
         20
       );
@@ -153,7 +187,11 @@ export const MapViewScreen = ({ navigation }: any) => {
       </View>
 
       {/* Current Location Button */}
-      <TouchableOpacity style={styles.locationButton} activeOpacity={0.8}>
+      <TouchableOpacity
+        style={styles.locationButton}
+        activeOpacity={0.8}
+        onPress={() => loadLocation(true)}
+      >
         <LinearGradient
           colors={['#D4AF37', '#FFD700']}
           style={styles.locationButtonGradient}
