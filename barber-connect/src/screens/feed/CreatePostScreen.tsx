@@ -12,13 +12,18 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import { Avatar } from '../../components/common/Avatar';
 import { Button } from '../../components/common/Button';
 import { colors, spacing, borderRadius, textStyles } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
 import { PostType } from '../../types/post.types';
 import { createPost } from '../../services/postsService';
+import {
+  pickImages as pickImagesService,
+  takePhoto as takePhotoService,
+  uploadImages,
+  getPostImagesPath,
+} from '../../services/imageUploadService';
 
 const POST_TYPES: Array<{ type: PostType; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
   { type: 'SHOWCASE', label: 'Showcase Work', icon: 'images-outline' },
@@ -58,41 +63,32 @@ export const CreatePostScreen = ({ navigation }: any) => {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [images, setImages] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(
+    null
+  );
 
   const pickImages = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'We need camera roll permissions to upload images');
+    const remainingSlots = 10 - images.length;
+    if (remainingSlots <= 0) {
+      Alert.alert('Limit Reached', 'You can only add up to 10 images');
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: true,
-      quality: 0.8,
-      aspect: [1, 1],
-    });
-
-    if (!result.canceled && result.assets) {
-      const newImages = result.assets.map((asset) => asset.uri);
-      setImages([...images, ...newImages].slice(0, 10)); // Max 10 images
+    const selectedImages = await pickImagesService(true, remainingSlots);
+    if (selectedImages.length > 0) {
+      setImages([...images, ...selectedImages]);
     }
   };
 
   const takePhoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'We need camera permissions to take photos');
+    if (images.length >= 10) {
+      Alert.alert('Limit Reached', 'You can only add up to 10 images');
       return;
     }
 
-    const result = await ImagePicker.launchCameraAsync({
-      quality: 0.8,
-      aspect: [1, 1],
-    });
-
-    if (!result.canceled && result.assets) {
-      setImages([...images, result.assets[0].uri]);
+    const photoUri = await takePhotoService({ aspect: [1, 1] });
+    if (photoUri) {
+      setImages([...images, photoUri]);
     }
   };
 
@@ -113,6 +109,11 @@ export const CreatePostScreen = ({ navigation }: any) => {
   };
 
   const handlePost = async () => {
+    if (!user?.id) {
+      Alert.alert('Error', 'User not found. Please log in again.');
+      return;
+    }
+
     if (images.length === 0) {
       Alert.alert('No Media', 'Please add at least one image to your post');
       return;
@@ -124,18 +125,25 @@ export const CreatePostScreen = ({ navigation }: any) => {
     }
 
     setIsLoading(true);
+    setUploadProgress({ current: 0, total: images.length });
+
     try {
-      // Create post with Firebase
-      // Note: For now, using placeholder URLs for images since real upload is pending
-      // In production, images would be uploaded to Firebase Storage first
+      // Upload images to Firebase Storage
+      const storagePath = getPostImagesPath(user.id);
+      const imageUrls = await uploadImages(images, storagePath, (current, total) => {
+        setUploadProgress({ current, total });
+      });
+
+      // Create post with uploaded image URLs
       const postId = await createPost(
-        images, // Using the image URIs - Firebase service will handle upload
+        imageUrls,
         caption.trim(),
         selectedTags,
         undefined, // location - can be added later
         'post' // Firebase post type
       );
 
+      setUploadProgress(null);
       Alert.alert('Success', 'Your post has been published!', [
         {
           text: 'OK',
@@ -147,6 +155,7 @@ export const CreatePostScreen = ({ navigation }: any) => {
     } catch (error) {
       console.error('Error creating post:', error);
       Alert.alert('Error', 'Failed to publish post. Please try again.');
+      setUploadProgress(null);
     } finally {
       setIsLoading(false);
     }
@@ -352,22 +361,41 @@ export const CreatePostScreen = ({ navigation }: any) => {
 
       {/* Bottom Bar */}
       <View style={styles.bottomBar}>
-        <Button
-          title="Save as Draft"
-          onPress={() => Alert.alert('Draft Saved', 'Your post has been saved as a draft')}
-          variant="outline"
-          size="large"
-          style={styles.draftButton}
-        />
-        <Button
-          title="Publish"
-          onPress={handlePost}
-          variant="gradient"
-          size="large"
-          style={styles.publishButton}
-          isLoading={isLoading}
-          icon="checkmark"
-        />
+        {uploadProgress ? (
+          <View style={styles.uploadProgressContainer}>
+            <Text style={styles.uploadProgressText}>
+              Uploading images... {uploadProgress.current} / {uploadProgress.total}
+            </Text>
+            <View style={styles.progressBar}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${(uploadProgress.current / uploadProgress.total) * 100}%` },
+                ]}
+              />
+            </View>
+          </View>
+        ) : (
+          <>
+            <Button
+              title="Save as Draft"
+              onPress={() => Alert.alert('Draft Saved', 'Your post has been saved as a draft')}
+              variant="outline"
+              size="large"
+              style={styles.draftButton}
+              disabled={isLoading}
+            />
+            <Button
+              title="Publish"
+              onPress={handlePost}
+              variant="gradient"
+              size="large"
+              style={styles.publishButton}
+              isLoading={isLoading}
+              icon="checkmark"
+            />
+          </>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -510,4 +538,25 @@ const styles = StyleSheet.create({
   },
   draftButton: { flex: 1 },
   publishButton: { flex: 2 },
+  uploadProgressContainer: {
+    flex: 1,
+    gap: spacing.sm,
+  },
+  uploadProgressText: {
+    ...textStyles.body,
+    color: colors.text.primary,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: colors.background.secondary,
+    borderRadius: borderRadius.full,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: colors.accent.gold,
+    borderRadius: borderRadius.full,
+  },
 });

@@ -21,6 +21,12 @@ import {
   addPortfolioImage,
   deletePortfolioImage,
 } from '../../services/barberService';
+import {
+  pickImage,
+  takePhoto,
+  uploadImage,
+  getPortfolioImagesPath,
+} from '../../services/imageUploadService';
 
 const { width } = Dimensions.get('window');
 const ITEM_WIDTH = (width - spacing.lg * 3) / 2;
@@ -31,6 +37,8 @@ export const PortfolioScreen = ({ navigation }: any) => {
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [imagePickerModalVisible, setImagePickerModalVisible] = useState(false);
 
   useEffect(() => {
     loadPortfolio();
@@ -54,22 +62,71 @@ export const PortfolioScreen = ({ navigation }: any) => {
     }
   };
 
-  const handleAddImage = async () => {
-    // Mock image upload - in real app would use image picker
-    const mockImageUrl = `https://picsum.photos/400/600?random=${Date.now()}`;
+  const handleAddImagePress = () => {
+    setImagePickerModalVisible(true);
+  };
+
+  const handlePickFromGallery = async () => {
+    setImagePickerModalVisible(false);
 
     if (!user?.id) {
       Alert.alert('Error', 'User not found');
       return;
     }
 
+    const imageUri = await pickImage({
+      allowsEditing: true,
+      aspect: [3, 4],
+      quality: 0.8,
+    });
+
+    if (imageUri) {
+      await uploadPortfolioImage(imageUri);
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    setImagePickerModalVisible(false);
+
+    if (!user?.id) {
+      Alert.alert('Error', 'User not found');
+      return;
+    }
+
+    const imageUri = await takePhoto({
+      allowsEditing: true,
+      aspect: [3, 4],
+      quality: 0.8,
+    });
+
+    if (imageUri) {
+      await uploadPortfolioImage(imageUri);
+    }
+  };
+
+  const uploadPortfolioImage = async (imageUri: string) => {
+    if (!user?.id) {
+      Alert.alert('Error', 'User not found');
+      return;
+    }
+
     try {
-      await addPortfolioImage(user.id, mockImageUrl);
+      setUploading(true);
+
+      // Upload image to Firebase Storage
+      const storagePath = getPortfolioImagesPath(user.id);
+      const downloadUrl = await uploadImage(imageUri, storagePath);
+
+      // Add to portfolio in Firestore
+      await addPortfolioImage(user.id, downloadUrl);
+
       Alert.alert('Success', 'Image added to portfolio');
       await loadPortfolio();
     } catch (err) {
       console.error('Add image error:', err);
-      Alert.alert('Error', 'Failed to add image');
+      Alert.alert('Error', 'Failed to add image. Please try again.');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -126,10 +183,25 @@ export const PortfolioScreen = ({ navigation }: any) => {
           <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Portfolio</Text>
-        <TouchableOpacity style={styles.addButton} onPress={handleAddImage}>
-          <Ionicons name="add-circle" size={28} color={colors.accent.gold} />
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={handleAddImagePress}
+          disabled={uploading}
+        >
+          {uploading ? (
+            <ActivityIndicator size="small" color={colors.accent.gold} />
+          ) : (
+            <Ionicons name="add-circle" size={28} color={colors.accent.gold} />
+          )}
         </TouchableOpacity>
       </View>
+
+      {uploading && (
+        <View style={styles.uploadingBanner}>
+          <ActivityIndicator size="small" color={colors.accent.gold} />
+          <Text style={styles.uploadingText}>Uploading image...</Text>
+        </View>
+      )}
 
       {loading ? (
         <View style={styles.loadingContainer}>
@@ -143,6 +215,16 @@ export const PortfolioScreen = ({ navigation }: any) => {
           <Text style={styles.emptySubtitle}>
             Add images to showcase your work to potential clients
           </Text>
+          <TouchableOpacity
+            style={styles.emptyButton}
+            onPress={handleAddImagePress}
+            activeOpacity={0.7}
+          >
+            <LinearGradient colors={['#D4AF37', '#FFD700']} style={styles.emptyButtonGradient}>
+              <Ionicons name="add" size={24} color="#000" />
+              <Text style={styles.emptyButtonText}>Add First Image</Text>
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
@@ -202,6 +284,67 @@ export const PortfolioScreen = ({ navigation }: any) => {
           )}
         </View>
       </Modal>
+
+      {/* Image Picker Modal */}
+      <Modal
+        visible={imagePickerModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setImagePickerModalVisible(false)}
+      >
+        <View style={styles.imagePickerModalContainer}>
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setImagePickerModalVisible(false)}
+          />
+
+          <View style={styles.imagePickerContent}>
+            <View style={styles.imagePickerHeader}>
+              <Text style={styles.imagePickerTitle}>Add Portfolio Image</Text>
+              <TouchableOpacity onPress={() => setImagePickerModalVisible(false)}>
+                <Ionicons name="close" size={28} color={colors.text.primary} />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={styles.imagePickerOption}
+              onPress={handleTakePhoto}
+              activeOpacity={0.7}
+            >
+              <View style={styles.imagePickerOptionIcon}>
+                <Ionicons name="camera" size={28} color={colors.accent.gold} />
+              </View>
+              <View style={styles.imagePickerOptionText}>
+                <Text style={styles.imagePickerOptionTitle}>Take Photo</Text>
+                <Text style={styles.imagePickerOptionSubtitle}>
+                  Capture a new photo with your camera
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color={colors.text.secondary} />
+            </TouchableOpacity>
+
+            <View style={styles.imagePickerDivider} />
+
+            <TouchableOpacity
+              style={styles.imagePickerOption}
+              onPress={handlePickFromGallery}
+              activeOpacity={0.7}
+            >
+              <View style={styles.imagePickerOptionIcon}>
+                <Ionicons name="images" size={28} color={colors.accent.gold} />
+              </View>
+              <View style={styles.imagePickerOptionText}>
+                <Text style={styles.imagePickerOptionTitle}>Choose from Gallery</Text>
+                <Text style={styles.imagePickerOptionSubtitle}>
+                  Select an existing photo from your library
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color={colors.text.secondary} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -248,6 +391,21 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     marginTop: spacing.lg,
   },
+  uploadingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.background.secondary,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border.light,
+  },
+  uploadingText: {
+    ...textStyles.body,
+    color: colors.text.primary,
+    fontWeight: '600',
+  },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -264,6 +422,23 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     textAlign: 'center',
     marginTop: spacing.sm,
+  },
+  emptyButton: {
+    marginTop: spacing.xl,
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+  },
+  emptyButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+  },
+  emptyButtonText: {
+    ...textStyles.body,
+    color: '#000',
+    fontWeight: '700',
   },
   portfolioGrid: {
     padding: spacing.lg,
@@ -337,5 +512,56 @@ const styles = StyleSheet.create({
     ...textStyles.body,
     color: colors.error,
     fontWeight: '600',
+  },
+  imagePickerModalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  imagePickerContent: {
+    backgroundColor: colors.background.card,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    padding: spacing.lg,
+  },
+  imagePickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  imagePickerTitle: {
+    ...textStyles.h3,
+    fontWeight: '700',
+  },
+  imagePickerOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    gap: spacing.md,
+  },
+  imagePickerOptionIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.background.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imagePickerOptionText: {
+    flex: 1,
+  },
+  imagePickerOptionTitle: {
+    ...textStyles.body,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  imagePickerOptionSubtitle: {
+    ...textStyles.caption,
+    color: colors.text.secondary,
+  },
+  imagePickerDivider: {
+    height: 1,
+    backgroundColor: colors.border.light,
+    marginVertical: spacing.sm,
   },
 });

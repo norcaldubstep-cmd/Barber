@@ -8,10 +8,10 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import { Avatar } from '../../components/common/Avatar';
 import { Button } from '../../components/common/Button';
 import { Input } from '../../components/common/Input';
@@ -21,6 +21,12 @@ import { useAuthStore } from '../../store/authStore';
 import { UserRole } from '../../types/user.types';
 import { getUser, updateUser } from '../../services/usersService';
 import { getBarberProfile, updateBarberProfile } from '../../services/barberService';
+import {
+  pickImage as pickImageService,
+  uploadImage,
+  getProfileImagePath,
+  getCoverPhotoPath,
+} from '../../services/imageUploadService';
 
 export const EditProfileScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
@@ -39,6 +45,8 @@ export const EditProfileScreen = ({ navigation }: any) => {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [avatar, setAvatar] = useState<string | null>(null);
+  const [coverPhoto, setCoverPhoto] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState<'profile' | 'cover' | null>(null);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -87,22 +95,27 @@ export const EditProfileScreen = ({ navigation }: any) => {
     'Man Buns', 'Long Hair', 'Beard Trims', 'Line Ups', 'Shaves',
   ];
 
-  const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'We need camera roll permissions');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+  const pickProfileImage = async () => {
+    const imageUri = await pickImageService({
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
     });
 
-    if (!result.canceled && result.assets) {
-      setAvatar(result.assets[0].uri);
+    if (imageUri) {
+      setAvatar(imageUri);
+    }
+  };
+
+  const pickCoverImage = async () => {
+    const imageUri = await pickImageService({
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+    });
+
+    if (imageUri) {
+      setCoverPhoto(imageUri);
     }
   };
 
@@ -156,6 +169,25 @@ export const EditProfileScreen = ({ navigation }: any) => {
 
     setIsSaving(true);
     try {
+      let profileImageUrl = avatar;
+      let coverPhotoUrl = coverPhoto;
+
+      // Upload profile image if it's a local URI (not already uploaded)
+      if (avatar && avatar.startsWith('file://')) {
+        setUploadingImage('profile');
+        const storagePath = getProfileImagePath(user.id);
+        profileImageUrl = await uploadImage(avatar, storagePath);
+      }
+
+      // Upload cover photo if it's a local URI
+      if (coverPhoto && coverPhoto.startsWith('file://')) {
+        setUploadingImage('cover');
+        const storagePath = getCoverPhotoPath(user.id);
+        coverPhotoUrl = await uploadImage(coverPhoto, storagePath);
+      }
+
+      setUploadingImage(null);
+
       // Update basic user info (for both clients and barbers)
       await updateUser(user.id, {
         firstName,
@@ -172,8 +204,8 @@ export const EditProfileScreen = ({ navigation }: any) => {
           worksAt,
           yearsOfExperience: yearsExperience ? parseInt(yearsExperience) : 0,
           specialties: selectedSpecialties,
-          // Note: Image upload will be added later
-          // profileImage: avatar,
+          profileImage: profileImageUrl || undefined,
+          // Note: coverPhoto field may need to be added to barber profile type
         });
       }
 
@@ -183,6 +215,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
     } catch (error) {
       console.error('Error updating profile:', error);
       Alert.alert('Error', 'Failed to update profile. Please try again.');
+      setUploadingImage(null);
     } finally {
       setIsSaving(false);
     }
@@ -211,17 +244,49 @@ export const EditProfileScreen = ({ navigation }: any) => {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Cover Photo Section (Barbers only) */}
+        {isBarber && (
+          <TouchableOpacity
+            style={styles.coverPhotoContainer}
+            onPress={pickCoverImage}
+            activeOpacity={0.8}
+          >
+            {coverPhoto ? (
+              <Image source={{ uri: coverPhoto }} style={styles.coverPhoto} />
+            ) : (
+              <View style={styles.coverPhotoPlaceholder}>
+                <Ionicons name="image-outline" size={48} color={colors.text.secondary} />
+                <Text style={styles.coverPhotoText}>Add Cover Photo</Text>
+              </View>
+            )}
+            {uploadingImage === 'cover' && (
+              <View style={styles.uploadingOverlay}>
+                <ActivityIndicator size="large" color={colors.accent.gold} />
+                <Text style={styles.uploadingText}>Uploading...</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        )}
+
         {/* Avatar Section */}
         <View style={styles.avatarSection}>
           <View style={styles.avatarContainer}>
             {avatar ? (
-              <Avatar name={`${firstName} ${lastName}`} size="2xl" />
+              avatar.startsWith('http') ? (
+                <Image source={{ uri: avatar }} style={styles.avatarImage} />
+              ) : (
+                <Image source={{ uri: avatar }} style={styles.avatarImage} />
+              )
             ) : (
               <Avatar name={`${user?.firstName} ${user?.lastName}`} size="2xl" />
             )}
-            <TouchableOpacity style={styles.editAvatarButton} onPress={pickImage}>
+            <TouchableOpacity style={styles.editAvatarButton} onPress={pickProfileImage}>
               <LinearGradient colors={['#D4AF37', '#FFD700']} style={styles.editAvatarGradient}>
-                <Ionicons name="camera" size={20} color="#000" />
+                {uploadingImage === 'profile' ? (
+                  <ActivityIndicator size="small" color="#000" />
+                ) : (
+                  <Ionicons name="camera" size={20} color="#000" />
+                )}
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -387,15 +452,24 @@ export const EditProfileScreen = ({ navigation }: any) => {
 
       {/* Save Button */}
       <View style={styles.bottomBar}>
-        <Button
-          title="Save Changes"
-          onPress={handleSave}
-          variant="gradient"
-          size="large"
-          fullWidth
-          isLoading={isSaving}
-          icon="checkmark"
-        />
+        {uploadingImage ? (
+          <View style={styles.uploadProgressContainer}>
+            <ActivityIndicator size="small" color={colors.accent.gold} />
+            <Text style={styles.uploadProgressText}>
+              Uploading {uploadingImage === 'profile' ? 'profile photo' : 'cover photo'}...
+            </Text>
+          </View>
+        ) : (
+          <Button
+            title="Save Changes"
+            onPress={handleSave}
+            variant="gradient"
+            size="large"
+            fullWidth
+            isLoading={isSaving}
+            icon="checkmark"
+          />
+        )}
       </View>
     </SafeAreaView>
   );
@@ -423,8 +497,47 @@ const styles = StyleSheet.create({
   },
   backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { ...textStyles.h2, fontWeight: '700' },
+  coverPhotoContainer: {
+    width: '100%',
+    height: 200,
+    backgroundColor: colors.background.secondary,
+    position: 'relative',
+  },
+  coverPhoto: {
+    width: '100%',
+    height: '100%',
+  },
+  coverPhotoPlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  coverPhotoText: {
+    ...textStyles.body,
+    color: colors.text.secondary,
+    fontWeight: '600',
+  },
+  uploadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  uploadingText: {
+    ...textStyles.body,
+    color: colors.text.primary,
+    fontWeight: '600',
+  },
   avatarSection: { alignItems: 'center', padding: spacing.xl },
   avatarContainer: { position: 'relative', marginBottom: spacing.md },
+  avatarImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: colors.background.secondary,
+  },
   editAvatarButton: {
     position: 'absolute',
     bottom: 0,
@@ -473,5 +586,17 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border.light,
     backgroundColor: colors.background.card,
+  },
+  uploadProgressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    padding: spacing.lg,
+  },
+  uploadProgressText: {
+    ...textStyles.body,
+    color: colors.text.primary,
+    fontWeight: '600',
   },
 });
