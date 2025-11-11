@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { colors, spacing, borderRadius, textStyles } from '../../theme';
+import { resetPassword } from '../../services/authService';
 
 export const ForgotPasswordScreen = ({ navigation }: any) => {
   const [email, setEmail] = useState('');
@@ -37,21 +38,30 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
     if (!validateEmail()) return;
 
     setLoading(true);
+    setErrors({});
 
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      // Send password reset email via Firebase
+      await resetPassword(email.trim());
+
       Alert.alert(
         'Check Your Email',
-        `We've sent a verification code to ${email}. Please check your inbox.`,
+        `We've sent a password reset link to ${email}. Please check your inbox and follow the instructions.`,
         [
           {
             text: 'OK',
-            onPress: () => navigation.navigate('ResetPassword', { email }),
+            onPress: () => navigation.goBack(),
           },
         ]
       );
-    }, 1500);
+    } catch (error: any) {
+      console.error('Reset password error:', error);
+      const errorMessage = error.message || 'Failed to send reset email. Please try again.';
+      setErrors({ email: errorMessage });
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

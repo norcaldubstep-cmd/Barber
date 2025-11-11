@@ -16,6 +16,8 @@ import { Button } from '../../components/common/Button';
 import { colors, spacing, borderRadius, textStyles } from '../../theme';
 import { UserRole } from '../../types/user.types';
 import { useAuthStore } from '../../store/authStore';
+import { signUp } from '../../services/authService';
+import { Alert } from 'react-native';
 
 interface SignUpScreenProps {
   navigation: any;
@@ -95,29 +97,35 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route })
     if (!validateForm()) return;
 
     setIsLoading(true);
-    try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+    setErrors({});
 
-      // Create mock user
-      const mockUser = {
-        id: '1',
-        email: formData.email,
-        role: role,
-        isBusinessOwner: isBusinessOwner,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        phoneNumber: formData.phoneNumber,
-        emailVerified: false,
-        createdAt: new Date().toISOString(),
-      };
+    try {
+      // Create user with Firebase
+      const user = await signUp(
+        formData.email.trim(),
+        formData.password,
+        formData.firstName.trim(),
+        formData.lastName.trim(),
+        role,
+        isBusinessOwner
+      );
 
       // Sign in the user
-      await signIn(mockUser, 'mock-token-123');
+      await signIn(user, 'firebase-auth');
+
+      // Show success message
+      Alert.alert(
+        'Account Created!',
+        'Please check your email to verify your account.',
+        [{ text: 'OK' }]
+      );
 
       // Navigation will happen automatically via RootNavigator
-    } catch (error) {
+    } catch (error: any) {
       console.error('Sign up error:', error);
+      const errorMessage = error.message || 'Failed to create account. Please try again.';
+      Alert.alert('Sign Up Failed', errorMessage);
+      setErrors({ email: errorMessage });
     } finally {
       setIsLoading(false);
     }

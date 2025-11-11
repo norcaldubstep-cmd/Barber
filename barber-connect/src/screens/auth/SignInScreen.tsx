@@ -15,6 +15,8 @@ import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { colors, spacing, borderRadius, textStyles } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
+import { signIn as authSignIn } from '../../services/authService';
+import { Alert } from 'react-native';
 
 export const SignInScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { signIn } = useAuthStore();
@@ -42,25 +44,21 @@ export const SignInScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     if (!validateForm()) return;
 
     setIsLoading(true);
+    setErrors({});
+
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Sign in with Firebase
+      const user = await authSignIn(email.trim(), password);
 
-      // Mock user
-      const mockUser = {
-        id: '1',
-        email: email,
-        role: 'BARBER' as any,
-        isBusinessOwner: false,
-        firstName: 'Mike',
-        lastName: 'Johnson',
-        emailVerified: true,
-        createdAt: new Date().toISOString(),
-      };
+      // Store user in auth store
+      await signIn(user, 'firebase-auth');
 
-      await signIn(mockUser, 'mock-token-123');
-    } catch (error) {
+      // Navigation is handled by authStore
+    } catch (error: any) {
       console.error('Sign in error:', error);
-      setErrors({ password: 'Invalid email or password' });
+      const errorMessage = error.message || 'Failed to sign in. Please check your credentials.';
+      setErrors({ password: errorMessage });
+      Alert.alert('Sign In Failed', errorMessage);
     } finally {
       setIsLoading(false);
     }
