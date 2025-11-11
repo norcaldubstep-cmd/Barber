@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Notification, NotificationType, NotificationPreferences } from '../types/notification.types';
+import { getUserPushTokens, getMultipleUsersPushTokens } from './pushNotificationService';
 
 /**
  * Notification Service
@@ -246,6 +247,152 @@ export const updateNotificationPreferences = async (
   }
 };
 
+/**
+ * Send push notification to a user
+ * Uses Expo Push Notification service
+ */
+export const sendPushNotification = async (
+  userId: string,
+  title: string,
+  body: string,
+  data?: any
+): Promise<void> => {
+  try {
+    // Check user's notification preferences
+    const preferences = await getNotificationPreferences(userId);
+    if (!preferences || !preferences.pushEnabled) {
+      console.log('Push notifications disabled for user:', userId);
+      return;
+    }
+
+    // Get user's push tokens (supports multiple devices)
+    const pushTokens = await getUserPushTokens(userId);
+
+    if (pushTokens.length === 0) {
+      console.log('No push tokens found for user:', userId);
+      return;
+    }
+
+    // Prepare push notifications for all devices
+    const messages = pushTokens.map((token) => ({
+      to: token,
+      sound: 'default',
+      title,
+      body,
+      data: data || {},
+      priority: 'high' as const,
+      channelId: 'barber-connect-default',
+      badge: 1,
+    }));
+
+    // Send push notifications via Expo Push Notification service
+    const response = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Accept-encoding': 'gzip, deflate',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(messages),
+    });
+
+    const result = await response.json();
+    console.log('Push notification sent:', result);
+
+    // Check for errors
+    if (result.data) {
+      result.data.forEach((item: any, index: number) => {
+        if (item.status === 'error') {
+          console.error('Push notification error for token:', pushTokens[index], item);
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Error sending push notification:', error);
+  }
+};
+
+/**
+ * Send push notifications to multiple users
+ */
+export const sendPushNotificationToMultipleUsers = async (
+  userIds: string[],
+  title: string,
+  body: string,
+  data?: any
+): Promise<void> => {
+  try {
+    // Get all push tokens for these users
+    const pushTokens = await getMultipleUsersPushTokens(userIds);
+
+    if (pushTokens.length === 0) {
+      console.log('No push tokens found for users');
+      return;
+    }
+
+    // Prepare push notifications for all devices
+    const messages = pushTokens.map((token) => ({
+      to: token,
+      sound: 'default',
+      title,
+      body,
+      data: data || {},
+      priority: 'high' as const,
+      channelId: 'barber-connect-default',
+      badge: 1,
+    }));
+
+    // Send push notifications via Expo Push Notification service
+    const response = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Accept-encoding': 'gzip, deflate',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(messages),
+    });
+
+    const result = await response.json();
+    console.log('Push notifications sent to multiple users:', result);
+  } catch (error) {
+    console.error('Error sending push notifications to multiple users:', error);
+  }
+};
+
+/**
+ * Send push notification to all followers of a user
+ */
+export const sendNotificationToFollowers = async (
+  userId: string,
+  title: string,
+  body: string,
+  data?: any
+): Promise<void> => {
+  try {
+    // Get user's followers
+    const followersQuery = query(
+      collection(db, 'follows'),
+      where('followingId', '==', userId)
+    );
+
+    const followersSnapshot = await getDocs(followersQuery);
+    const followerIds = followersSnapshot.docs.map((doc) => doc.data().followerId);
+
+    if (followerIds.length === 0) {
+      console.log('No followers found for user:', userId);
+      return;
+    }
+
+    // Send push notifications to all followers
+    await sendPushNotificationToMultipleUsers(followerIds, title, body, data);
+
+    console.log(`Sent notification to ${followerIds.length} followers`);
+  } catch (error) {
+    console.error('Error sending notification to followers:', error);
+  }
+};
+
 // Helper functions to create specific notification types
 
 export const notifyBookingConfirmed = async (
@@ -255,13 +402,22 @@ export const notifyBookingConfirmed = async (
   date: string,
   time: string
 ): Promise<void> => {
+  const title = 'Booking Confirmed';
+  const message = `Your appointment with ${barberName} on ${date} at ${time} has been confirmed`;
+
   await createNotification(
     userId,
     NotificationType.BOOKING_CONFIRMED,
-    'Booking Confirmed',
-    `Your appointment with ${barberName} on ${date} at ${time} has been confirmed`,
+    title,
+    message,
     { bookingId, actionUrl: `/booking/${bookingId}` }
   );
+
+  // Send push notification
+  await sendPushNotification(userId, title, message, {
+    type: 'BOOKING_CONFIRMED',
+    bookingId,
+  });
 };
 
 export const notifyBookingCancelled = async (
@@ -269,13 +425,22 @@ export const notifyBookingCancelled = async (
   bookingId: string,
   barberName: string
 ): Promise<void> => {
+  const title = 'Booking Cancelled';
+  const message = `Your appointment with ${barberName} has been cancelled`;
+
   await createNotification(
     userId,
     NotificationType.BOOKING_CANCELLED,
-    'Booking Cancelled',
-    `Your appointment with ${barberName} has been cancelled`,
+    title,
+    message,
     { bookingId }
   );
+
+  // Send push notification
+  await sendPushNotification(userId, title, message, {
+    type: 'BOOKING_CANCELLED',
+    bookingId,
+  });
 };
 
 export const notifyBookingReminder = async (
@@ -284,13 +449,22 @@ export const notifyBookingReminder = async (
   barberName: string,
   time: string
 ): Promise<void> => {
+  const title = 'Upcoming Appointment';
+  const message = `Reminder: You have an appointment with ${barberName} at ${time}`;
+
   await createNotification(
     userId,
     NotificationType.BOOKING_REMINDER,
-    'Upcoming Appointment',
-    `Reminder: You have an appointment with ${barberName} at ${time}`,
+    title,
+    message,
     { bookingId, actionUrl: `/booking/${bookingId}` }
   );
+
+  // Send push notification
+  await sendPushNotification(userId, title, message, {
+    type: 'BOOKING_REMINDER',
+    bookingId,
+  });
 };
 
 export const notifyNewMessage = async (
@@ -301,13 +475,24 @@ export const notifyNewMessage = async (
   conversationId: string,
   messagePreview: string
 ): Promise<void> => {
+  const title = 'New Message';
+  const message = `${senderName}: ${messagePreview}`;
+
   await createNotification(
     userId,
     NotificationType.NEW_MESSAGE,
-    'New Message',
-    `${senderName}: ${messagePreview}`,
+    title,
+    message,
     { senderId, senderName, senderAvatar, conversationId, actionUrl: `/chat/${conversationId}` }
   );
+
+  // Send push notification
+  await sendPushNotification(userId, title, message, {
+    type: 'NEW_MESSAGE',
+    senderId,
+    senderName,
+    conversationId,
+  });
 };
 
 export const notifyNewFollower = async (
@@ -316,13 +501,23 @@ export const notifyNewFollower = async (
   followerName: string,
   followerAvatar?: string
 ): Promise<void> => {
+  const title = 'New Follower';
+  const message = `${followerName} started following you`;
+
   await createNotification(
     userId,
     NotificationType.NEW_FOLLOWER,
-    'New Follower',
-    `${followerName} started following you`,
+    title,
+    message,
     { senderId: followerId, senderName: followerName, senderAvatar: followerAvatar }
   );
+
+  // Send push notification
+  await sendPushNotification(userId, title, message, {
+    type: 'NEW_FOLLOWER',
+    senderId: followerId,
+    senderName: followerName,
+  });
 };
 
 export const notifyPostLike = async (
@@ -332,13 +527,24 @@ export const notifyPostLike = async (
   postId: string,
   likerAvatar?: string
 ): Promise<void> => {
+  const title = 'New Like';
+  const message = `${likerName} liked your post`;
+
   await createNotification(
     userId,
     NotificationType.POST_LIKE,
-    'New Like',
-    `${likerName} liked your post`,
+    title,
+    message,
     { senderId: likerId, senderName: likerName, senderAvatar: likerAvatar, postId, actionUrl: `/post/${postId}` }
   );
+
+  // Send push notification
+  await sendPushNotification(userId, title, message, {
+    type: 'POST_LIKE',
+    senderId: likerId,
+    senderName: likerName,
+    postId,
+  });
 };
 
 export const notifyPostComment = async (
@@ -349,13 +555,24 @@ export const notifyPostComment = async (
   comment: string,
   commenterAvatar?: string
 ): Promise<void> => {
+  const title = 'New Comment';
+  const message = `${commenterName} commented: ${comment.substring(0, 50)}${comment.length > 50 ? '...' : ''}`;
+
   await createNotification(
     userId,
     NotificationType.POST_COMMENT,
-    'New Comment',
-    `${commenterName} commented: ${comment.substring(0, 50)}${comment.length > 50 ? '...' : ''}`,
+    title,
+    message,
     { senderId: commenterId, senderName: commenterName, senderAvatar: commenterAvatar, postId, actionUrl: `/post/${postId}` }
   );
+
+  // Send push notification
+  await sendPushNotification(userId, title, message, {
+    type: 'POST_COMMENT',
+    senderId: commenterId,
+    senderName: commenterName,
+    postId,
+  });
 };
 
 export const notifyReviewReceived = async (
@@ -365,11 +582,49 @@ export const notifyReviewReceived = async (
   rating: number,
   reviewId: string
 ): Promise<void> => {
+  const title = 'New Review';
+  const message = `${reviewerName} left you a ${rating}-star review`;
+
   await createNotification(
     userId,
     NotificationType.REVIEW_RECEIVED,
-    'New Review',
-    `${reviewerName} left you a ${rating}-star review`,
+    title,
+    message,
     { senderId: reviewerId, senderName: reviewerName, reviewId }
   );
+
+  // Send push notification
+  await sendPushNotification(userId, title, message, {
+    type: 'REVIEW_RECEIVED',
+    senderId: reviewerId,
+    senderName: reviewerName,
+    reviewId,
+  });
+};
+
+export const notifyJobApplication = async (
+  userId: string,
+  applicantId: string,
+  applicantName: string,
+  jobId: string,
+  jobTitle: string
+): Promise<void> => {
+  const title = 'New Job Application';
+  const message = `${applicantName} applied for ${jobTitle}`;
+
+  await createNotification(
+    userId,
+    NotificationType.JOB_APPLICATION,
+    title,
+    message,
+    { senderId: applicantId, senderName: applicantName, jobId, actionUrl: `/job/${jobId}` }
+  );
+
+  // Send push notification
+  await sendPushNotification(userId, title, message, {
+    type: 'JOB_APPLICATION',
+    senderId: applicantId,
+    senderName: applicantName,
+    jobId,
+  });
 };

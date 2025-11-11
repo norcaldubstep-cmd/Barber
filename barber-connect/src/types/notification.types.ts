@@ -7,6 +7,7 @@ export enum NotificationType {
   POST_LIKE = 'POST_LIKE',
   POST_COMMENT = 'POST_COMMENT',
   REVIEW_RECEIVED = 'REVIEW_RECEIVED',
+  JOB_APPLICATION = 'JOB_APPLICATION',
   PROMOTION_UPDATE = 'PROMOTION_UPDATE',
   SYSTEM = 'SYSTEM',
 }
@@ -28,6 +29,7 @@ export interface Notification {
   postId?: string;
   conversationId?: string;
   reviewId?: string;
+  jobId?: string;
 
   // Metadata
   isRead: boolean;
