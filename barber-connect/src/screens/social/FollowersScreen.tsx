@@ -120,7 +120,7 @@ export const FollowersScreen = ({ navigation, route }: any) => {
           </View>
         ) : (
           <LinearGradient
-            colors={['#D4AF37', '#FFD700']}
+            colors={['#D4AF37', '#E8C869']}
             style={styles.followButton}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}

@@ -239,7 +239,7 @@ export const FiltersScreen = ({ navigation, route }: any) => {
                 >
                   {isSelected ? (
                     <LinearGradient
-                      colors={['#D4AF37', '#FFD700']}
+                      colors={['#D4AF37', '#E8C869']}
                       style={styles.specialtyChip}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
@@ -273,7 +273,7 @@ export const FiltersScreen = ({ navigation, route }: any) => {
                 >
                   {isSelected ? (
                     <LinearGradient
-                      colors={['#D4AF37', '#FFD700']}
+                      colors={['#D4AF37', '#E8C869']}
                       style={styles.availabilityChip}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
@@ -312,7 +312,7 @@ export const FiltersScreen = ({ navigation, route }: any) => {
                 >
                   {isSelected ? (
                     <LinearGradient
-                      colors={['#D4AF37', '#FFD700']}
+                      colors={['#D4AF37', '#E8C869']}
                       style={styles.sortOption}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}

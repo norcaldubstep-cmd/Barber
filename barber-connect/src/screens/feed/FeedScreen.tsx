@@ -181,7 +181,7 @@ export const FeedScreen = ({ navigation }: any) => {
     >
       {selectedCategory === item.id ? (
         <LinearGradient
-          colors={['#D4AF37', '#FFD700', '#D4AF37']}
+          colors={['#D4AF37', '#E8C869']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.categoryGradient}
@@ -349,7 +349,7 @@ export const FeedScreen = ({ navigation }: any) => {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <LinearGradient
-            colors={['#D4AF37', '#FFD700', '#D4AF37']}
+            colors={['#D4AF37', '#E8C869']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.logoGradient}
@@ -364,7 +364,7 @@ export const FeedScreen = ({ navigation }: any) => {
             onPress={() => navigation.navigate('Stories')}
           >
             <LinearGradient
-              colors={['#D4AF37', '#FFD700']}
+              colors={['#D4AF37', '#E8C869']}
               style={styles.storiesIconGradient}
             >
               <Ionicons name="images-outline" size={20} color="#000" />
@@ -437,7 +437,7 @@ export const FeedScreen = ({ navigation }: any) => {
         activeOpacity={0.9}
       >
         <LinearGradient
-          colors={['#D4AF37', '#FFD700', '#D4AF37']}
+          colors={['#D4AF37', '#E8C869']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.fabGradient}

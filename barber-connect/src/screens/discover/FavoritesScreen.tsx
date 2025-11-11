@@ -203,7 +203,7 @@ export const FavoritesScreen = ({ navigation }: any) => {
       {/* Stats Banner */}
       {favorites.length > 0 && (
         <LinearGradient
-          colors={['#D4AF37', '#FFD700']}
+          colors={['#D4AF37', '#E8C869']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.statsBanner}

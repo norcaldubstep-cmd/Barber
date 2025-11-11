@@ -2,7 +2,7 @@ import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, textStyles } from '../../theme';
+import { colors, spacing, borderRadius, textStyles, shadows } from '../../theme';
 
 interface ButtonProps {
   title: string;
@@ -51,12 +51,21 @@ export const Button: React.FC<ButtonProps> = ({
   ];
 
   const iconSize = size === 'small' ? 16 : size === 'large' ? 24 : 20;
-  const iconColor = variant === 'primary' || variant === 'gradient' ? colors.text.inverse : colors.primary.main;
+
+  // Refined icon colors for each variant
+  const getIconColor = () => {
+    if (variant === 'gradient') return '#000';
+    if (variant === 'primary' || variant === 'danger') return colors.text.inverse;
+    if (variant === 'outline') return colors.accent.gold;
+    return colors.primary.main;
+  };
+
+  const iconColor = getIconColor();
 
   const renderContent = () => (
     <>
       {isLoading ? (
-        <ActivityIndicator color={iconColor} />
+        <ActivityIndicator color={iconColor} size={size === 'large' ? 'large' : 'small'} />
       ) : (
         <>
           {icon && iconPosition === 'left' && <Ionicons name={icon} size={iconSize} color={iconColor} />}
@@ -69,12 +78,17 @@ export const Button: React.FC<ButtonProps> = ({
 
   if (variant === 'gradient') {
     return (
-      <TouchableOpacity onPress={onPress} disabled={isDisabled} activeOpacity={0.8} style={[buttonStyle, { padding: 0, overflow: 'hidden' }]}>
+      <TouchableOpacity
+        onPress={onPress}
+        disabled={isDisabled}
+        activeOpacity={0.85}
+        style={[buttonStyle, styles.gradientWrapper]}
+      >
         <LinearGradient
-          colors={['#D4AF37', '#FFD700', '#F4E5AD', '#FFD700', '#D4AF37']}
+          colors={['#D4AF37', '#E8C869']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
-          style={styles.gradient}
+          style={[styles.gradient, styles[`${size}Gradient`]]}
         >
           {renderContent()}
         </LinearGradient>
@@ -83,7 +97,7 @@ export const Button: React.FC<ButtonProps> = ({
   }
 
   return (
-    <TouchableOpacity onPress={onPress} disabled={isDisabled} activeOpacity={0.7} style={buttonStyle}>
+    <TouchableOpacity onPress={onPress} disabled={isDisabled} activeOpacity={0.75} style={buttonStyle}>
       {renderContent()}
     </TouchableOpacity>
   );
@@ -95,45 +109,109 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: borderRadius.lg,
-    gap: spacing.sm,
   },
   fullWidth: { width: '100%' },
+
+  // Gradient wrapper with shadow
+  gradientWrapper: {
+    padding: 0,
+    overflow: 'hidden',
+    ...shadows.md,
+    shadowColor: '#D4AF37',
+    shadowOpacity: 0.25,
+  },
+
   gradient: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
+    width: '100%',
   },
 
   // Sizes
-  small: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, minHeight: 36 },
-  medium: { paddingVertical: spacing.md, paddingHorizontal: spacing.lg, minHeight: 44 },
-  large: { paddingVertical: spacing.lg, paddingHorizontal: spacing.xl, minHeight: 52 },
+  small: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    minHeight: 36,
+  },
+  medium: {
+    paddingVertical: spacing.md + 2,
+    paddingHorizontal: spacing.lg + 4,
+    minHeight: 48,
+  },
+  large: {
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    minHeight: 54,
+  },
+
+  // Gradient sizes (padding inside gradient)
+  smallGradient: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    gap: spacing.xs,
+  },
+  mediumGradient: {
+    paddingVertical: spacing.md + 2,
+    paddingHorizontal: spacing.lg + 4,
+    gap: spacing.sm,
+  },
+  largeGradient: {
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    gap: spacing.sm,
+  },
 
   // Variants
-  primaryContainer: { backgroundColor: colors.primary.main },
-  secondaryContainer: { backgroundColor: colors.neutral[100] },
-  outlineContainer: { backgroundColor: 'transparent', borderWidth: 2, borderColor: colors.primary.main },
-  ghostContainer: { backgroundColor: 'transparent' },
-  gradientContainer: { padding: 0 },
-  dangerContainer: { backgroundColor: colors.error },
+  primaryContainer: {
+    backgroundColor: colors.primary.main,
+    ...shadows.sm,
+  },
+  secondaryContainer: {
+    backgroundColor: colors.background.secondary,
+    borderWidth: 1,
+    borderColor: colors.border.light,
+  },
+  outlineContainer: {
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: colors.accent.gold,
+  },
+  ghostContainer: {
+    backgroundColor: 'transparent',
+  },
+  gradientContainer: {
+    padding: 0,
+  },
+  dangerContainer: {
+    backgroundColor: colors.error,
+    ...shadows.sm,
+  },
 
   // Text Styles
-  text: { ...textStyles.button, fontWeight: '700' },
-  smallText: { fontSize: 14 },
-  mediumText: { fontSize: 16 },
-  largeText: { fontSize: 18 },
+  text: {
+    ...textStyles.button,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  smallText: { fontSize: 14, lineHeight: 16 },
+  mediumText: { fontSize: 16, lineHeight: 19 },
+  largeText: { fontSize: 18, lineHeight: 21 },
+
   primaryText: { color: colors.text.inverse },
   secondaryText: { color: colors.text.primary },
-  outlineText: { color: colors.primary.main },
+  outlineText: { color: colors.accent.gold, fontWeight: '600' },
   ghostText: { color: colors.primary.main },
-  gradientText: { color: colors.text.inverse, fontWeight: '800' },
+  gradientText: {
+    color: '#000',
+    fontWeight: '700',
+    textShadowColor: 'rgba(255, 255, 255, 0.3)',
+    textShadowOffset: { width: 0, height: 0.5 },
+    textShadowRadius: 1,
+  },
   dangerText: { color: colors.text.inverse },
 
   // States
   disabled: { opacity: 0.5 },
-  disabledText: { opacity: 0.7 },
+  disabledText: { opacity: 0.8 },
 });

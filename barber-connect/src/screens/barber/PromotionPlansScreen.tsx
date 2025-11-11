@@ -116,7 +116,7 @@ export const PromotionPlansScreen = ({ navigation }: any) => {
           )}
           {plan.isPopular && (
             <View style={styles.popularBadge}>
-              <LinearGradient colors={['#D4AF37', '#FFD700']} style={styles.popularGradient}>
+              <LinearGradient colors={['#D4AF37', '#E8C869']} style={styles.popularGradient}>
                 <Ionicons name="star" size={12} color="#000" />
                 <Text style={styles.popularText}>MOST POPULAR</Text>
               </LinearGradient>
@@ -199,7 +199,7 @@ export const PromotionPlansScreen = ({ navigation }: any) => {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Hero Section */}
         <LinearGradient
-          colors={['#D4AF37', '#FFD700', '#D4AF37']}
+          colors={['#D4AF37', '#E8C869']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.hero}

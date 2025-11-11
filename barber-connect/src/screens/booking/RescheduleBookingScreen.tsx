@@ -213,7 +213,7 @@ export const RescheduleBookingScreen = ({ navigation, route }: any) => {
                 >
                   {isSelected ? (
                     <LinearGradient
-                      colors={['#D4AF37', '#FFD700']}
+                      colors={['#D4AF37', '#E8C869']}
                       style={styles.dateCard}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
@@ -280,7 +280,7 @@ export const RescheduleBookingScreen = ({ navigation, route }: any) => {
                   >
                     {isSelected ? (
                       <LinearGradient
-                        colors={['#D4AF37', '#FFD700']}
+                        colors={['#D4AF37', '#E8C869']}
                         style={styles.timeSlot}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}

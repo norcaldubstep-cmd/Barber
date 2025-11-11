@@ -189,7 +189,7 @@ export const ProfileScreen = ({ navigation }: any) => {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <LinearGradient
-          colors={['#D4AF37', '#FFD700', '#D4AF37']}
+          colors={['#D4AF37', '#E8C869']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.headerGradient}
@@ -215,7 +215,7 @@ export const ProfileScreen = ({ navigation }: any) => {
             />
             <TouchableOpacity style={styles.editAvatarButton}>
               <LinearGradient
-                colors={['#D4AF37', '#FFD700']}
+                colors={['#D4AF37', '#E8C869']}
                 style={styles.editAvatarGradient}
               >
                 <Ionicons name="camera" size={16} color="#000" />

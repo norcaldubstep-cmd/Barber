@@ -220,7 +220,7 @@ export const PortfolioScreen = ({ navigation }: any) => {
             onPress={handleAddImagePress}
             activeOpacity={0.7}
           >
-            <LinearGradient colors={['#D4AF37', '#FFD700']} style={styles.emptyButtonGradient}>
+            <LinearGradient colors={['#D4AF37', '#E8C869']} style={styles.emptyButtonGradient}>
               <Ionicons name="add" size={24} color="#000" />
               <Text style={styles.emptyButtonText}>Add First Image</Text>
             </LinearGradient>

@@ -281,7 +281,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
               <Avatar name={`${user?.firstName} ${user?.lastName}`} size="2xl" />
             )}
             <TouchableOpacity style={styles.editAvatarButton} onPress={pickProfileImage}>
-              <LinearGradient colors={['#D4AF37', '#FFD700']} style={styles.editAvatarGradient}>
+              <LinearGradient colors={['#D4AF37', '#E8C869']} style={styles.editAvatarGradient}>
                 {uploadingImage === 'profile' ? (
                   <ActivityIndicator size="small" color="#000" />
                 ) : (

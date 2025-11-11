@@ -193,7 +193,7 @@ export const MapViewScreen = ({ navigation }: any) => {
         onPress={() => loadLocation(true)}
       >
         <LinearGradient
-          colors={['#D4AF37', '#FFD700']}
+          colors={['#D4AF37', '#E8C869']}
           style={styles.locationButtonGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -276,7 +276,7 @@ export const MapViewScreen = ({ navigation }: any) => {
 
             <TouchableOpacity onPress={handleBookNow} activeOpacity={0.8}>
               <LinearGradient
-                colors={['#D4AF37', '#FFD700']}
+                colors={['#D4AF37', '#E8C869']}
                 style={styles.bookButton}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}

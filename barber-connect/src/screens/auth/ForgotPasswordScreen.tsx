@@ -82,7 +82,7 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
           {/* Icon */}
           <View style={styles.iconContainer}>
             <LinearGradient
-              colors={['#D4AF37', '#FFD700']}
+              colors={['#D4AF37', '#E8C869']}
               style={styles.iconGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}

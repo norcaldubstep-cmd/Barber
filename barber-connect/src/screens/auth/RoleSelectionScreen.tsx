@@ -102,7 +102,7 @@ export const RoleSelectionScreen: React.FC<{ navigation: any }> = ({ navigation 
                   >
                     {option.recommended && (
                       <View style={styles.recommendedBadge}>
-                        <LinearGradient colors={['#D4AF37', '#FFD700']} style={styles.recommendedGradient}>
+                        <LinearGradient colors={['#D4AF37', '#E8C869']} style={styles.recommendedGradient}>
                           <Ionicons name="star" size={12} color="#000" />
                           <Text style={styles.recommendedText}>RECOMMENDED</Text>
                         </LinearGradient>

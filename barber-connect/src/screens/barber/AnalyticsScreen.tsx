@@ -284,7 +284,7 @@ export const AnalyticsScreen = ({ navigation }: any) => {
                 <View key={index} style={styles.chartBar}>
                   <View style={styles.barContainer}>
                     <LinearGradient
-                      colors={['#D4AF37', '#FFD700']}
+                      colors={['#D4AF37', '#E8C869']}
                       style={[
                         styles.bar,
                         {

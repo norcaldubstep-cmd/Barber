@@ -27,7 +27,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
         {/* Logo & Branding */}
         <View style={styles.header}>
           <LinearGradient
-            colors={['#D4AF37', '#FFD700', '#D4AF37']}
+            colors={['#D4AF37', '#E8C869']}
             style={styles.logoContainer}
           >
             <Ionicons name="cut" size={48} color="#000" />

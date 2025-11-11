@@ -381,7 +381,7 @@ export const JobBoardScreen = ({ navigation }: any) => {
         onPress={() => navigation.navigate('PostJob')}
         activeOpacity={0.9}
       >
-        <LinearGradient colors={['#D4AF37', '#FFD700']} style={styles.fabGradient}>
+        <LinearGradient colors={['#D4AF37', '#E8C869']} style={styles.fabGradient}>
           <Ionicons name="add" size={32} color="#000" />
         </LinearGradient>
       </TouchableOpacity>
