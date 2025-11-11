@@ -18,6 +18,7 @@ import { Button } from '../../components/common/Button';
 import { colors, spacing, borderRadius, textStyles } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
 import { PostType } from '../../types/post.types';
+import { createPost } from '../../services/postsService';
 
 const POST_TYPES: Array<{ type: PostType; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
   { type: 'SHOWCASE', label: 'Showcase Work', icon: 'images-outline' },
@@ -124,8 +125,16 @@ export const CreatePostScreen = ({ navigation }: any) => {
 
     setIsLoading(true);
     try {
-      // Simulate post creation
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Create post with Firebase
+      // Note: For now, using placeholder URLs for images since real upload is pending
+      // In production, images would be uploaded to Firebase Storage first
+      const postId = await createPost(
+        images, // Using the image URIs - Firebase service will handle upload
+        caption.trim(),
+        selectedTags,
+        undefined, // location - can be added later
+        'post' // Firebase post type
+      );
 
       Alert.alert('Success', 'Your post has been published!', [
         {
@@ -136,6 +145,7 @@ export const CreatePostScreen = ({ navigation }: any) => {
         },
       ]);
     } catch (error) {
+      console.error('Error creating post:', error);
       Alert.alert('Error', 'Failed to publish post. Please try again.');
     } finally {
       setIsLoading(false);

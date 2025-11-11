@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   Image,
   Dimensions,
   RefreshControl,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,7 +19,8 @@ import { Avatar } from '../../components/common/Avatar';
 import { Card } from '../../components/common/Card';
 import { colors, spacing, borderRadius, textStyles, shadows } from '../../theme';
 import { Post, PostType } from '../../types/post.types';
-import { MOCK_POSTS } from '../../utils/mockData';
+import { getFeedPosts, toggleLike, toggleSave } from '../../services/postsService';
+import type { Post as FirebasePost } from '../../services/postsService';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - spacing.lg * 2;
@@ -30,44 +33,141 @@ const CATEGORIES = [
 ];
 
 export const FeedScreen = ({ navigation }: any) => {
-  const [posts, setPosts] = useState<Post[]>(MOCK_POSTS);
+  const [posts, setPosts] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('all');
+
+  useEffect(() => {
+    loadFeed();
+  }, []);
+
+  const loadFeed = async () => {
+    try {
+      setLoading(true);
+      const { posts: fetchedPosts } = await getFeedPosts();
+
+      // Transform Firebase posts to match UI Post type
+      const transformedPosts = fetchedPosts.map((firebasePost: FirebasePost) => ({
+        id: firebasePost.id,
+        authorId: firebasePost.authorId,
+        authorName: firebasePost.authorName,
+        authorAvatar: firebasePost.authorAvatar,
+        isVerified: firebasePost.isVerified,
+        promotionTier: 'FREE',
+        type: PostType.IMAGE,
+        caption: firebasePost.caption,
+        hashtags: firebasePost.hashtags,
+        mentions: [],
+        media: firebasePost.imageUrls.map((url: string, index: number) => ({
+          id: `${firebasePost.id}_${index}`,
+          type: 'image',
+          url,
+        })),
+        likesCount: firebasePost.likesCount,
+        commentsCount: firebasePost.commentsCount,
+        sharesCount: firebasePost.sharesCount || 0,
+        savesCount: firebasePost.savesCount,
+        viewsCount: 0,
+        isLiked: firebasePost.liked || false,
+        isSaved: firebasePost.saved || false,
+        location: firebasePost.location,
+        createdAt: firebasePost.createdAt.toISOString(),
+        updatedAt: firebasePost.updatedAt.toISOString(),
+      }));
+
+      setPosts(transformedPosts);
+    } catch (error) {
+      console.error('Error loading feed:', error);
+      Alert.alert('Error', 'Failed to load feed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      await loadFeed();
+    } catch (error) {
+      console.error('Error refreshing feed:', error);
+    } finally {
       setRefreshing(false);
-    }, 1000);
+    }
   };
 
-  const handleLike = (postId: string) => {
+  const handleLike = async (postId: string) => {
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+
+    // Optimistic update
     setPosts((prev) =>
-      prev.map((post) =>
-        post.id === postId
+      prev.map((p) =>
+        p.id === postId
           ? {
-              ...post,
-              isLiked: !post.isLiked,
-              likesCount: post.isLiked ? post.likesCount - 1 : post.likesCount + 1,
+              ...p,
+              isLiked: !p.isLiked,
+              likesCount: p.isLiked ? p.likesCount - 1 : p.likesCount + 1,
             }
-          : post
+          : p
       )
     );
+
+    try {
+      await toggleLike(postId, post.isLiked);
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      // Revert optimistic update on error
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? {
+                ...p,
+                isLiked: post.isLiked,
+                likesCount: post.likesCount,
+              }
+            : p
+        )
+      );
+      Alert.alert('Error', 'Failed to update like. Please try again.');
+    }
   };
 
-  const handleSave = (postId: string) => {
+  const handleSave = async (postId: string) => {
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+
+    // Optimistic update
     setPosts((prev) =>
-      prev.map((post) =>
-        post.id === postId
+      prev.map((p) =>
+        p.id === postId
           ? {
-              ...post,
-              isSaved: !post.isSaved,
-              savesCount: post.isSaved ? post.savesCount - 1 : post.savesCount + 1,
+              ...p,
+              isSaved: !p.isSaved,
+              savesCount: p.isSaved ? p.savesCount - 1 : p.savesCount + 1,
             }
-          : post
+          : p
       )
     );
+
+    try {
+      await toggleSave(postId, post.isSaved);
+    } catch (error) {
+      console.error('Error toggling save:', error);
+      // Revert optimistic update on error
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? {
+                ...p,
+                isSaved: post.isSaved,
+                savesCount: post.savesCount,
+              }
+            : p
+        )
+      );
+      Alert.alert('Error', 'Failed to update save. Please try again.');
+    }
   };
 
   const renderCategory = ({ item }: { item: typeof CATEGORIES[0] }) => (
@@ -301,20 +401,34 @@ export const FeedScreen = ({ navigation }: any) => {
       </View>
 
       {/* Feed */}
-      <FlatList
-        data={posts}
-        renderItem={renderPost}
-        keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.accent.gold}
-          />
-        }
-        contentContainerStyle={styles.feedContent}
-      />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.accent.gold} />
+          <Text style={styles.loadingText}>Loading feed...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={posts}
+          renderItem={renderPost}
+          keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.accent.gold}
+            />
+          }
+          contentContainerStyle={styles.feedContent}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Ionicons name="images-outline" size={64} color={colors.text.secondary} />
+              <Text style={styles.emptyText}>No posts yet</Text>
+              <Text style={styles.emptySubtext}>Follow some barbers to see their posts</Text>
+            </View>
+          }
+        />
+      )}
 
       {/* FAB - Create Post */}
       <TouchableOpacity
@@ -587,5 +701,34 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing['2xl'],
+  },
+  loadingText: {
+    ...textStyles.body,
+    color: colors.text.secondary,
+    marginTop: spacing.md,
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing['2xl'],
+    marginTop: spacing['4xl'],
+  },
+  emptyText: {
+    ...textStyles.h3,
+    color: colors.text.primary,
+    marginTop: spacing.md,
+  },
+  emptySubtext: {
+    ...textStyles.body,
+    color: colors.text.secondary,
+    marginTop: spacing.xs,
+    textAlign: 'center',
   },
 });
