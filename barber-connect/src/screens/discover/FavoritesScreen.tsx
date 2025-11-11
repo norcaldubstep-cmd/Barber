@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,9 @@ import {
   SafeAreaView,
   FlatList,
   TouchableOpacity,
+  RefreshControl,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,15 +16,84 @@ import { Avatar } from '../../components/common/Avatar';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { colors, spacing, borderRadius, textStyles, shadows } from '../../theme';
-import { MOCK_BARBERS } from '../../utils/mockData';
 import { BarberProfile } from '../../types/barber.types';
+import { getBarberProfile } from '../../services/barberService';
+import { getUserFavorites, removeFavorite } from '../../services/usersService';
+import { useAuthStore } from '../../store/authStore';
 
 export const FavoritesScreen = ({ navigation }: any) => {
-  // In real app, this would come from state/API
-  const [favorites, setFavorites] = useState<BarberProfile[]>(MOCK_BARBERS.slice(0, 4));
+  const { user } = useAuthStore();
+  const [favorites, setFavorites] = useState<BarberProfile[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const removeFavorite = (barberId: string) => {
-    setFavorites(favorites.filter((b) => b.id !== barberId));
+  useEffect(() => {
+    loadFavorites();
+  }, [user]);
+
+  const loadFavorites = async () => {
+    if (!user) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Get favorite barber IDs
+      const favoriteIds = await getUserFavorites(user.id);
+
+      // Fetch full barber profiles
+      const barberProfiles = await Promise.all(
+        favoriteIds.map((id) => getBarberProfile(id))
+      );
+
+      // Filter out any null results
+      setFavorites(barberProfiles.filter((b) => b !== null) as BarberProfile[]);
+    } catch (err) {
+      console.error('Error loading favorites:', err);
+      setError('Failed to load favorites. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadFavorites();
+    setRefreshing(false);
+  };
+
+  const handleRemoveFavorite = async (barberId: string) => {
+    if (!user) return;
+
+    Alert.alert(
+      'Remove Favorite',
+      'Are you sure you want to remove this barber from your favorites?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Optimistically update UI
+              setFavorites(favorites.filter((b) => b.id !== barberId));
+
+              // Remove from Firebase
+              await removeFavorite(user.id, barberId);
+            } catch (err) {
+              console.error('Error removing favorite:', err);
+              // Reload favorites to restore state
+              loadFavorites();
+              Alert.alert('Error', 'Failed to remove favorite. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const renderBarber = ({ item }: { item: BarberProfile }) => (
@@ -40,7 +112,7 @@ export const FavoritesScreen = ({ navigation }: any) => {
           />
           <TouchableOpacity
             style={styles.favoriteButton}
-            onPress={() => removeFavorite(item.id)}
+            onPress={() => handleRemoveFavorite(item.id)}
           >
             <Ionicons name="heart" size={24} color={colors.accent.red} />
           </TouchableOpacity>
@@ -148,16 +220,36 @@ export const FavoritesScreen = ({ navigation }: any) => {
         </LinearGradient>
       )}
 
+      {/* Error Message */}
+      {error && (
+        <View style={styles.errorBanner}>
+          <Ionicons name="warning" size={20} color={colors.error} />
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity onPress={loadFavorites}>
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Loading Indicator */}
+      {isLoading && !refreshing && (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.accent.gold} />
+          <Text style={styles.loadingText}>Loading favorites...</Text>
+        </View>
+      )}
+
       {/* Favorites List */}
-      {favorites.length > 0 ? (
+      {!isLoading && favorites.length > 0 ? (
         <FlatList
           data={favorites}
           renderItem={renderBarber}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         />
-      ) : (
+      ) : !isLoading ? (
         <View style={styles.emptyState}>
           <View style={styles.emptyIcon}>
             <Ionicons name="heart-outline" size={64} color={colors.text.secondary} />
@@ -284,4 +376,33 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   discoverButton: { minWidth: 200 },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.error + '20',
+    padding: spacing.md,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+    borderRadius: borderRadius.lg,
+    gap: spacing.sm,
+  },
+  errorText: {
+    flex: 1,
+    ...textStyles.bodySmall,
+    color: colors.error,
+  },
+  retryText: {
+    ...textStyles.bodySmall,
+    color: colors.accent.gold,
+    fontWeight: '700',
+  },
+  loadingContainer: {
+    padding: spacing['3xl'],
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  loadingText: {
+    ...textStyles.body,
+    color: colors.text.secondary,
+  },
 });

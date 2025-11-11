@@ -7,6 +7,8 @@ import {
   ScrollView,
   TouchableOpacity,
   FlatList,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,19 +17,60 @@ import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { colors, spacing, borderRadius, textStyles, shadows } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
-import { MOCK_BARBERS } from '../../utils/mockData';
 import { BarberProfile } from '../../types/barber.types';
+import { getNearbyBarbers, getTopRatedBarbers, getBarberProfile } from '../../services/barberService';
+import { getUserFavorites } from '../../services/usersService';
 
 export const ClientHomeScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
   const [nearbyBarbers, setNearbyBarbers] = useState<BarberProfile[]>([]);
   const [favoriteBarbers, setFavoriteBarbers] = useState<BarberProfile[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Default location (San Francisco) if geolocation not available
+  const DEFAULT_LOCATION = { latitude: 37.7749, longitude: -122.4194 };
 
   useEffect(() => {
-    // Simulate loading data
-    setNearbyBarbers(MOCK_BARBERS.slice(0, 3));
-    setFavoriteBarbers(MOCK_BARBERS.slice(0, 2));
-  }, []);
+    loadData();
+  }, [user]);
+
+  const loadData = async () => {
+    if (!user) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Load nearby barbers using default location
+      const nearby = await getNearbyBarbers(
+        DEFAULT_LOCATION.latitude,
+        DEFAULT_LOCATION.longitude,
+        25,
+        3
+      );
+      setNearbyBarbers(nearby);
+
+      // Load user favorites
+      const favoriteIds = await getUserFavorites(user.id);
+      const favorites = await Promise.all(
+        favoriteIds.slice(0, 2).map((id) => getBarberProfile(id))
+      );
+      setFavoriteBarbers(favorites.filter((b) => b !== null) as BarberProfile[]);
+    } catch (err) {
+      console.error('Error loading home data:', err);
+      setError('Failed to load data. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  };
 
   const renderQuickAction = (
     icon: keyof typeof Ionicons.glyphMap,
@@ -82,7 +125,29 @@ export const ClientHomeScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        {/* Error Message */}
+        {error && (
+          <View style={styles.errorBanner}>
+            <Ionicons name="warning" size={20} color={colors.error} />
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity onPress={loadData}>
+              <Text style={styles.retryText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Loading Indicator */}
+        {isLoading && !refreshing && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.accent.gold} />
+            <Text style={styles.loadingText}>Loading your barbers...</Text>
+          </View>
+        )}
+
         {/* Header */}
         <View style={styles.header}>
           <View>
@@ -366,4 +431,33 @@ const styles = StyleSheet.create({
   tipText: { flex: 1 },
   tipTitle: { ...textStyles.body, fontWeight: '700', marginBottom: spacing.xs },
   tipDescription: { ...textStyles.bodySmall, color: colors.text.secondary, lineHeight: 18 },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.error + '20',
+    padding: spacing.md,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+    borderRadius: borderRadius.lg,
+    gap: spacing.sm,
+  },
+  errorText: {
+    flex: 1,
+    ...textStyles.bodySmall,
+    color: colors.error,
+  },
+  retryText: {
+    ...textStyles.bodySmall,
+    color: colors.accent.gold,
+    fontWeight: '700',
+  },
+  loadingContainer: {
+    padding: spacing['3xl'],
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  loadingText: {
+    ...textStyles.body,
+    color: colors.text.secondary,
+  },
 });

@@ -21,9 +21,11 @@ import { BarberProfile, BarberSearchFilters, SPECIALTIES } from '../../types/bar
 import { DISTANCE_OPTIONS } from '../../types/location.types';
 import { PROMOTION_PLANS, PromotionTier } from '../../types/promotion.types';
 import { getCurrentLocation, calculateDistance, formatDistance } from '../../utils/location.utils';
-import { MOCK_BARBERS } from '../../utils/mockData';
+import { searchBarbers, getNearbyBarbers, getTopRatedBarbers } from '../../services/barberService';
+import { useAuthStore } from '../../store/authStore';
 
 export const DiscoverScreen = ({ navigation }: any) => {
+  const { user } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [barbers, setBarbers] = useState<BarberProfile[]>([]);
   const [filteredBarbers, setFilteredBarbers] = useState<BarberProfile[]>([]);
@@ -31,6 +33,7 @@ export const DiscoverScreen = ({ navigation }: any) => {
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Filters
   const [filters, setFilters] = useState<BarberSearchFilters>({
@@ -38,35 +41,66 @@ export const DiscoverScreen = ({ navigation }: any) => {
     sortBy: 'promoted',
   });
 
+  // Default location (San Francisco) if geolocation not available
+  const DEFAULT_LOCATION = { latitude: 37.7749, longitude: -122.4194 };
+
   useEffect(() => {
     loadLocation();
-    loadBarbers();
   }, []);
 
   useEffect(() => {
+    if (userLocation) {
+      loadBarbers();
+    }
+  }, [userLocation, filters]);
+
+  useEffect(() => {
+    // Debounce search query
+    const timer = setTimeout(() => {
+      if (userLocation) {
+        loadBarbers();
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
     applyFilters();
-  }, [searchQuery, filters, barbers, userLocation]);
+  }, [barbers]);
 
   const loadLocation = async () => {
     const location = await getCurrentLocation();
     if (location) {
       setUserLocation(location);
     } else {
-      Alert.alert(
-        'Location Required',
-        'Please enable location services to find barbers near you.',
-        [{ text: 'OK' }]
-      );
+      // Use default location if geolocation is not available
+      setUserLocation(DEFAULT_LOCATION);
     }
   };
 
   const loadBarbers = async () => {
     setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setBarbers(MOCK_BARBERS);
+    setError(null);
+    try {
+      const location = userLocation || DEFAULT_LOCATION;
+
+      // Build filter object with location
+      const searchFilters: BarberSearchFilters = {
+        ...filters,
+        query: searchQuery || undefined,
+        location: location,
+      };
+
+      // Fetch barbers using Firebase
+      const fetchedBarbers = await searchBarbers(searchFilters, 50);
+      setBarbers(fetchedBarbers);
+    } catch (err) {
+      console.error('Error loading barbers:', err);
+      setError('Failed to load barbers. Please try again.');
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   const onRefresh = async () => {
@@ -77,61 +111,20 @@ export const DiscoverScreen = ({ navigation }: any) => {
   };
 
   const applyFilters = () => {
+    // Since Firebase already handles most filtering, we just need to set the filtered barbers
+    // The distance and sorting are already handled by the searchBarbers function
     let filtered = [...barbers];
 
-    // Calculate distances
-    if (userLocation) {
-      filtered = filtered.map((barber) => ({
-        ...barber,
-        distance: calculateDistance(
-          userLocation.latitude,
-          userLocation.longitude,
-          barber.location.latitude,
-          barber.location.longitude
-        ),
-        distanceUnit: 'miles' as const,
-      }));
-
-      // Filter by distance
-      if (filters.maxDistance && filters.maxDistance < 999) {
-        filtered = filtered.filter((b) => (b.distance || 0) <= filters.maxDistance!);
-      }
-    }
-
-    // Search query
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (b) =>
-          b.displayName.toLowerCase().includes(query) ||
-          b.bio?.toLowerCase().includes(query) ||
-          b.specialties.some((s) => s.toLowerCase().includes(query)) ||
-          b.location.city?.toLowerCase().includes(query)
-      );
-    }
-
-    // Sort
-    switch (filters.sortBy) {
-      case 'promoted':
-        // Sort by promotion tier first, then rating
-        filtered.sort((a, b) => {
-          const aTierPriority = PROMOTION_PLANS.find((p) => p.tier === a.promotionTier)?.priority || 0;
-          const bTierPriority = PROMOTION_PLANS.find((p) => p.tier === b.promotionTier)?.priority || 0;
-          if (aTierPriority !== bTierPriority) {
-            return bTierPriority - aTierPriority;
-          }
-          return b.rating - a.rating;
-        });
-        break;
-      case 'distance':
-        filtered.sort((a, b) => (a.distance || 999) - (b.distance || 999));
-        break;
-      case 'rating':
-        filtered.sort((a, b) => b.rating - a.rating);
-        break;
-      case 'popularity':
-        filtered.sort((a, b) => b.followersCount - a.followersCount);
-        break;
+    // Additional local sorting for promotion tier if needed
+    if (filters.sortBy === 'promoted') {
+      filtered.sort((a, b) => {
+        const aTierPriority = PROMOTION_PLANS.find((p) => p.tier === a.promotionTier)?.priority || 0;
+        const bTierPriority = PROMOTION_PLANS.find((p) => p.tier === b.promotionTier)?.priority || 0;
+        if (aTierPriority !== bTierPriority) {
+          return bTierPriority - aTierPriority;
+        }
+        return b.rating - a.rating;
+      });
     }
 
     setFilteredBarbers(filtered);
@@ -398,10 +391,21 @@ export const DiscoverScreen = ({ navigation }: any) => {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="search-outline" size={64} color={colors.text.tertiary} />
-            <Text style={styles.emptyTitle}>No barbers found</Text>
-            <Text style={styles.emptyText}>
-              Try adjusting your search or filters
+            <Text style={styles.emptyTitle}>
+              {isLoading ? 'Loading...' : error ? 'Error Loading Barbers' : 'No barbers found'}
             </Text>
+            <Text style={styles.emptyText}>
+              {error || 'Try adjusting your search or filters'}
+            </Text>
+            {error && (
+              <Button
+                title="Retry"
+                onPress={loadBarbers}
+                variant="gradient"
+                size="medium"
+                style={{ marginTop: spacing.md }}
+              />
+            )}
           </View>
         }
       />

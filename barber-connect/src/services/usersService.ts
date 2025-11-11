@@ -4,6 +4,7 @@ import {
   getDoc,
   getDocs,
   addDoc,
+  updateDoc,
   deleteDoc,
   query,
   where,
@@ -362,5 +363,72 @@ export const getRecentSearches = async (): Promise<SearchResult[]> => {
   } catch (error) {
     console.error('Error fetching recent searches:', error);
     throw error;
+  }
+};
+
+// Get user's favorite barbers
+export const getUserFavorites = async (userId: string): Promise<string[]> => {
+  try {
+    const favoritesQuery = query(
+      collection(db, 'favorites'),
+      where('userId', '==', userId)
+    );
+
+    const snapshot = await getDocs(favoritesQuery);
+    return snapshot.docs.map((doc) => doc.data().barberId);
+  } catch (error) {
+    console.error('Error fetching user favorites:', error);
+    return [];
+  }
+};
+
+// Add barber to favorites
+export const addFavorite = async (userId: string, barberId: string): Promise<void> => {
+  try {
+    await addDoc(collection(db, 'favorites'), {
+      userId,
+      barberId,
+      createdAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error('Error adding favorite:', error);
+    throw new Error('Failed to add favorite');
+  }
+};
+
+// Remove barber from favorites
+export const removeFavorite = async (userId: string, barberId: string): Promise<void> => {
+  try {
+    const favoritesQuery = query(
+      collection(db, 'favorites'),
+      where('userId', '==', userId),
+      where('barberId', '==', barberId)
+    );
+
+    const snapshot = await getDocs(favoritesQuery);
+
+    // Delete all matching documents
+    const deletePromises = snapshot.docs.map((doc) => deleteDoc(doc.ref));
+    await Promise.all(deletePromises);
+  } catch (error) {
+    console.error('Error removing favorite:', error);
+    throw new Error('Failed to remove favorite');
+  }
+};
+
+// Get user by ID (alias for getUserById)
+export const getUser = getUserById;
+
+// Update user profile
+export const updateUser = async (userId: string, updates: Partial<User>): Promise<void> => {
+  try {
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      ...updates,
+      updatedAt: serverTimestamp(),
+    } as any);
+  } catch (error) {
+    console.error('Error updating user:', error);
+    throw new Error('Failed to update user');
   }
 };

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,76 +7,61 @@ import {
   TouchableOpacity,
   Image,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, spacing, borderRadius, textStyles } from '../../theme';
+import { BarberProfile } from '../../types/barber.types';
+import { getNearbyBarbers } from '../../services/barberService';
+import { useAuthStore } from '../../store/authStore';
+import { formatDistance } from '../../utils/location.utils';
 
 const { width, height } = Dimensions.get('window');
 
-interface Barber {
-  id: string;
-  name: string;
-  avatar: string;
-  rating: number;
-  reviewCount: number;
-  distance: string;
-  specialties: string[];
-  latitude: number;
-  longitude: number;
-  isOpen: boolean;
-}
-
-// Mock barbers with locations
-const MOCK_BARBERS: Barber[] = [
-  {
-    id: '1',
-    name: 'Mike Johnson',
-    avatar: 'https://i.pravatar.cc/150?img=12',
-    rating: 4.9,
-    reviewCount: 342,
-    distance: '0.5 mi',
-    specialties: ['Fade', 'Beard'],
-    latitude: 37.78825,
-    longitude: -122.4324,
-    isOpen: true,
-  },
-  {
-    id: '2',
-    name: 'James Smith',
-    avatar: 'https://i.pravatar.cc/150?img=13',
-    rating: 4.8,
-    reviewCount: 289,
-    distance: '0.8 mi',
-    specialties: ['Fade', 'Lineup'],
-    latitude: 37.78925,
-    longitude: -122.4344,
-    isOpen: true,
-  },
-  {
-    id: '3',
-    name: 'Chris Brown',
-    avatar: 'https://i.pravatar.cc/150?img=14',
-    rating: 4.7,
-    reviewCount: 215,
-    distance: '1.2 mi',
-    specialties: ['Taper', 'Design'],
-    latitude: 37.79025,
-    longitude: -122.4304,
-    isOpen: false,
-  },
-];
-
 export const MapViewScreen = ({ navigation }: any) => {
-  const [selectedBarber, setSelectedBarber] = useState<Barber | null>(null);
+  const { user } = useAuthStore();
+  const [barbers, setBarbers] = useState<BarberProfile[]>([]);
+  const [selectedBarber, setSelectedBarber] = useState<BarberProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Default location (San Francisco) if geolocation not available
+  const DEFAULT_LOCATION = { latitude: 37.7749, longitude: -122.4194 };
+
   const [mapRegion] = useState({
-    latitude: 37.78825,
-    longitude: -122.4324,
+    latitude: DEFAULT_LOCATION.latitude,
+    longitude: DEFAULT_LOCATION.longitude,
     latitudeDelta: 0.01,
     longitudeDelta: 0.01,
   });
 
-  const handleBarberPress = (barber: Barber) => {
+  useEffect(() => {
+    loadNearbyBarbers();
+  }, []);
+
+  const loadNearbyBarbers = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Fetch nearby barbers using Firebase
+      const nearby = await getNearbyBarbers(
+        DEFAULT_LOCATION.latitude,
+        DEFAULT_LOCATION.longitude,
+        10,
+        20
+      );
+      setBarbers(nearby);
+    } catch (err) {
+      console.error('Error loading nearby barbers:', err);
+      setError('Failed to load barbers. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBarberPress = (barber: BarberProfile) => {
     setSelectedBarber(barber);
   };
 
@@ -113,36 +98,57 @@ export const MapViewScreen = ({ navigation }: any) => {
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
-          <Ionicons name="map" size={80} color={colors.accent.gold} />
-          <Text style={styles.mapPlaceholderText}>Map View</Text>
-          <Text style={styles.mapPlaceholderSubtext}>
-            Showing {MOCK_BARBERS.length} barbers nearby
-          </Text>
+          {isLoading ? (
+            <>
+              <ActivityIndicator size="large" color={colors.accent.gold} />
+              <Text style={styles.mapPlaceholderText}>Loading barbers...</Text>
+            </>
+          ) : error ? (
+            <>
+              <Ionicons name="alert-circle" size={80} color={colors.error} />
+              <Text style={styles.mapPlaceholderText}>Error Loading Map</Text>
+              <Text style={styles.mapPlaceholderSubtext}>{error}</Text>
+              <TouchableOpacity
+                onPress={loadNearbyBarbers}
+                style={styles.retryButton}
+              >
+                <Text style={styles.retryButtonText}>Retry</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <Ionicons name="map" size={80} color={colors.accent.gold} />
+              <Text style={styles.mapPlaceholderText}>Map View</Text>
+              <Text style={styles.mapPlaceholderSubtext}>
+                Showing {barbers.length} barber{barbers.length !== 1 ? 's' : ''} nearby
+              </Text>
 
-          {/* Mock Markers */}
-          {MOCK_BARBERS.map((barber, index) => (
-            <TouchableOpacity
-              key={barber.id}
-              style={[
-                styles.marker,
-                {
-                  top: `${30 + index * 20}%`,
-                  left: `${20 + index * 25}%`,
-                },
-              ]}
-              onPress={() => handleBarberPress(barber)}
-            >
-              <View
-                style={[
-                  styles.markerDot,
-                  selectedBarber?.id === barber.id && styles.markerDotSelected,
-                ]}
-              />
-              {selectedBarber?.id === barber.id && (
-                <View style={styles.markerPulse} />
-              )}
-            </TouchableOpacity>
-          ))}
+              {/* Mock Markers */}
+              {barbers.map((barber, index) => (
+                <TouchableOpacity
+                  key={barber.id}
+                  style={[
+                    styles.marker,
+                    {
+                      top: `${30 + index * 20}%`,
+                      left: `${20 + index * 25}%`,
+                    },
+                  ]}
+                  onPress={() => handleBarberPress(barber)}
+                >
+                  <View
+                    style={[
+                      styles.markerDot,
+                      selectedBarber?.id === barber.id && styles.markerDotSelected,
+                    ]}
+                  />
+                  {selectedBarber?.id === barber.id && (
+                    <View style={styles.markerPulse} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </>
+          )}
         </LinearGradient>
       </View>
 
@@ -163,20 +169,23 @@ export const MapViewScreen = ({ navigation }: any) => {
         <View style={styles.bottomCard}>
           <View style={styles.barberCard}>
             {/* Avatar */}
-            <Image source={{ uri: selectedBarber.avatar }} style={styles.avatar} />
+            <Image
+              source={{ uri: selectedBarber.profileImage || 'https://via.placeholder.com/80' }}
+              style={styles.avatar}
+            />
 
             {/* Info */}
             <View style={styles.barberInfo}>
               <View style={styles.barberHeader}>
-                <Text style={styles.barberName}>{selectedBarber.name}</Text>
-                {selectedBarber.isOpen ? (
+                <Text style={styles.barberName}>{selectedBarber.displayName}</Text>
+                {selectedBarber.isAvailable ? (
                   <View style={styles.statusBadge}>
                     <View style={styles.statusDot} />
-                    <Text style={styles.statusText}>Open</Text>
+                    <Text style={styles.statusText}>Available</Text>
                   </View>
                 ) : (
                   <View style={[styles.statusBadge, styles.statusBadgeClosed]}>
-                    <Text style={styles.statusTextClosed}>Closed</Text>
+                    <Text style={styles.statusTextClosed}>Unavailable</Text>
                   </View>
                 )}
               </View>
@@ -185,17 +194,21 @@ export const MapViewScreen = ({ navigation }: any) => {
                 <View style={styles.ratingContainer}>
                   <Ionicons name="star" size={16} color={colors.accent.gold} />
                   <Text style={styles.rating}>{selectedBarber.rating}</Text>
-                  <Text style={styles.reviewCount}>({selectedBarber.reviewCount})</Text>
+                  <Text style={styles.reviewCount}>({selectedBarber.totalReviews})</Text>
                 </View>
                 <View style={styles.divider} />
                 <View style={styles.distanceContainer}>
                   <Ionicons name="location" size={16} color={colors.accent.blue} />
-                  <Text style={styles.distance}>{selectedBarber.distance}</Text>
+                  <Text style={styles.distance}>
+                    {selectedBarber.distance !== undefined
+                      ? formatDistance(selectedBarber.distance, selectedBarber.distanceUnit || 'miles')
+                      : 'N/A'}
+                  </Text>
                 </View>
               </View>
 
               <View style={styles.specialties}>
-                {selectedBarber.specialties.map((specialty, index) => (
+                {selectedBarber.specialties.slice(0, 3).map((specialty, index) => (
                   <View key={index} style={styles.specialtyBadge}>
                     <Text style={styles.specialtyText}>{specialty}</Text>
                   </View>
@@ -483,6 +496,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   bookButtonText: {
+    ...textStyles.body,
+    fontWeight: '700',
+    color: '#000',
+  },
+  retryButton: {
+    marginTop: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.accent.gold,
+    borderRadius: borderRadius.lg,
+  },
+  retryButtonText: {
     ...textStyles.body,
     fontWeight: '700',
     color: '#000',
