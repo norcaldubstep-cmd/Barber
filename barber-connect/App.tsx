@@ -4,6 +4,7 @@ import { View, Alert, Platform } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { ErrorBoundary } from './src/components/common/ErrorBoundary';
 import {
   registerForPushNotifications,
   savePushTokenToUser,
@@ -225,9 +226,11 @@ export default function App() {
   }
 
   return (
-    <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
-      <RootNavigator ref={navigationRef} />
-      <StatusBar style="light" />
-    </View>
+    <ErrorBoundary>
+      <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
+        <RootNavigator ref={navigationRef} />
+        <StatusBar style="light" />
+      </View>
+    </ErrorBoundary>
   );
 }
