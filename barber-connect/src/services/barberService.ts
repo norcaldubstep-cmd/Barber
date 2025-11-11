@@ -376,3 +376,219 @@ const calculateDistance = (
 const toRad = (degrees: number): number => {
   return (degrees * Math.PI) / 180;
 };
+
+// Get barber services
+export const getBarberServices = async (barberId: string): Promise<Service[]> => {
+  try {
+    const barberProfile = await getBarberProfile(barberId);
+    return barberProfile?.services || [];
+  } catch (error) {
+    console.error('Get barber services error:', error);
+    return [];
+  }
+};
+
+// Add barber service
+export const addBarberService = async (
+  barberId: string,
+  service: Omit<Service, 'id'>
+): Promise<void> => {
+  try {
+    const barberProfile = await getBarberProfile(barberId);
+    if (!barberProfile) {
+      throw new Error('Barber profile not found');
+    }
+
+    const newService: Service = {
+      ...service,
+      id: `service_${Date.now()}`,
+    };
+
+    const updatedServices = [...barberProfile.services, newService];
+    await updateBarberServices(barberId, updatedServices);
+  } catch (error) {
+    console.error('Add barber service error:', error);
+    throw new Error('Failed to add service');
+  }
+};
+
+// Update barber service
+export const updateBarberService = async (
+  barberId: string,
+  serviceId: string,
+  updates: Partial<Omit<Service, 'id'>>
+): Promise<void> => {
+  try {
+    const barberProfile = await getBarberProfile(barberId);
+    if (!barberProfile) {
+      throw new Error('Barber profile not found');
+    }
+
+    const updatedServices = barberProfile.services.map((s) =>
+      s.id === serviceId ? { ...s, ...updates } : s
+    );
+    await updateBarberServices(barberId, updatedServices);
+  } catch (error) {
+    console.error('Update barber service error:', error);
+    throw new Error('Failed to update service');
+  }
+};
+
+// Delete barber service
+export const deleteBarberService = async (
+  barberId: string,
+  serviceId: string
+): Promise<void> => {
+  try {
+    const barberProfile = await getBarberProfile(barberId);
+    if (!barberProfile) {
+      throw new Error('Barber profile not found');
+    }
+
+    const updatedServices = barberProfile.services.filter((s) => s.id !== serviceId);
+    await updateBarberServices(barberId, updatedServices);
+  } catch (error) {
+    console.error('Delete barber service error:', error);
+    throw new Error('Failed to delete service');
+  }
+};
+
+// Get barber portfolio
+export const getBarberPortfolio = async (barberId: string): Promise<string[]> => {
+  try {
+    const barberProfile = await getBarberProfile(barberId);
+    return barberProfile?.portfolioImages || [];
+  } catch (error) {
+    console.error('Get barber portfolio error:', error);
+    return [];
+  }
+};
+
+// Add portfolio image with description
+export const addPortfolioImage = async (
+  barberId: string,
+  imageUrl: string,
+  description?: string
+): Promise<void> => {
+  try {
+    const barberDoc = await getDoc(doc(db, 'barbers', barberId));
+    const currentImages = barberDoc.data()?.portfolioImages || [];
+
+    await updateDoc(doc(db, 'barbers', barberId), {
+      portfolioImages: [...currentImages, imageUrl],
+    });
+  } catch (error) {
+    console.error('Add portfolio image error:', error);
+    throw new Error('Failed to add portfolio image');
+  }
+};
+
+// Get barber availability/schedule
+export const getBarberAvailability = async (barberId: string): Promise<any> => {
+  try {
+    const availabilityDoc = await getDoc(doc(db, 'barberAvailability', barberId));
+
+    if (!availabilityDoc.exists()) {
+      return null;
+    }
+
+    return { barberId, ...availabilityDoc.data() };
+  } catch (error) {
+    console.error('Get barber availability error:', error);
+    return null;
+  }
+};
+
+// Update barber availability/schedule
+export const updateBarberAvailability = async (
+  barberId: string,
+  availability: any
+): Promise<void> => {
+  try {
+    await setDoc(doc(db, 'barberAvailability', barberId), {
+      ...availability,
+      barberId,
+      lastUpdated: serverTimestamp(),
+    }, { merge: true });
+  } catch (error) {
+    console.error('Update barber availability error:', error);
+    throw new Error('Failed to update availability');
+  }
+};
+
+// Get barber analytics
+export const getBarberAnalytics = async (
+  barberId: string,
+  startDate: Date,
+  endDate: Date
+): Promise<any> => {
+  try {
+    // Query bookings for the date range
+    const bookingsQuery = query(
+      collection(db, 'bookings'),
+      where('barberId', '==', barberId),
+      where('date', '>=', startDate.toISOString().split('T')[0]),
+      where('date', '<=', endDate.toISOString().split('T')[0]),
+      where('status', '==', 'completed')
+    );
+
+    const snapshot = await getDocs(bookingsQuery);
+    const bookings = snapshot.docs.map((doc) => doc.data());
+
+    // Calculate analytics
+    const totalBookings = bookings.length;
+    const totalRevenue = bookings.reduce((sum, booking) => sum + (booking.price || 0), 0);
+
+    // Get unique clients
+    const uniqueClients = new Set(bookings.map(b => b.clientId));
+    const newClients = uniqueClients.size;
+
+    // Top services
+    const serviceCount: Record<string, { name: string; count: number; revenue: number }> = {};
+    bookings.forEach((booking) => {
+      const serviceName = booking.serviceName || 'Unknown';
+      if (!serviceCount[serviceName]) {
+        serviceCount[serviceName] = { name: serviceName, count: 0, revenue: 0 };
+      }
+      serviceCount[serviceName].count++;
+      serviceCount[serviceName].revenue += booking.price || 0;
+    });
+
+    const topServices = Object.values(serviceCount)
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 3);
+
+    // Revenue by day/week/month (simplified)
+    const revenueByDay: Record<string, number> = {};
+    bookings.forEach((booking) => {
+      const day = booking.date;
+      revenueByDay[day] = (revenueByDay[day] || 0) + (booking.price || 0);
+    });
+
+    return {
+      revenue: totalRevenue,
+      bookings: totalBookings,
+      newClients,
+      profileViews: 0, // Would need to track this separately
+      revenueChange: 0, // Would need previous period data
+      bookingsChange: 0, // Would need previous period data
+      topServices,
+      revenueByDay: Object.entries(revenueByDay).map(([day, amount]) => ({
+        day,
+        amount,
+      })),
+    };
+  } catch (error) {
+    console.error('Get barber analytics error:', error);
+    return {
+      revenue: 0,
+      bookings: 0,
+      newClients: 0,
+      profileViews: 0,
+      revenueChange: 0,
+      bookingsChange: 0,
+      topServices: [],
+      revenueByDay: [],
+    };
+  }
+};

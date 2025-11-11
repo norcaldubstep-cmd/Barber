@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,10 +15,40 @@ import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { colors, spacing, borderRadius, textStyles, shadows } from '../../theme';
 import { PROMOTION_PLANS, PromotionTier } from '../../types/promotion.types';
+import { useAuthStore } from '../../store/authStore';
+import { getBarberProfile } from '../../services/barberService';
 
 export const PromotionPlansScreen = ({ navigation }: any) => {
+  const { user } = useAuthStore();
+  const [currentTier, setCurrentTier] = useState<PromotionTier>('FREE');
   const [selectedTier, setSelectedTier] = useState<PromotionTier>('SILVER');
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadCurrentTier();
+  }, []);
+
+  const loadCurrentTier = async () => {
+    if (!user?.id) {
+      Alert.alert('Error', 'User not found');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const profile = await getBarberProfile(user.id);
+      if (profile && profile.promotionTier) {
+        setCurrentTier(profile.promotionTier);
+        setSelectedTier(profile.promotionTier);
+      }
+    } catch (err) {
+      console.error('Load tier error:', err);
+      Alert.alert('Error', 'Failed to load current plan');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const selectedPlan = PROMOTION_PLANS.find((p) => p.tier === selectedTier);
 
@@ -38,8 +69,8 @@ export const PromotionPlansScreen = ({ navigation }: any) => {
   const handleSubscribe = async () => {
     if (!selectedPlan) return;
 
-    if (selectedPlan.tier === 'FREE') {
-      Alert.alert('Current Plan', 'You are already on the free plan');
+    if (selectedPlan.tier === currentTier) {
+      Alert.alert('Current Plan', `You are already on the ${selectedPlan.name} plan`);
       return;
     }
 
@@ -47,22 +78,10 @@ export const PromotionPlansScreen = ({ navigation }: any) => {
     const total = billingCycle === 'monthly' ? price : price * 12;
 
     Alert.alert(
-      'Confirm Subscription',
-      `Subscribe to ${selectedPlan.name} plan for $${total}/${billingCycle === 'monthly' ? 'month' : 'year'}?`,
+      'Upgrade Plan',
+      `This would upgrade you to ${selectedPlan.name} plan for $${total}/${billingCycle === 'monthly' ? 'month' : 'year'}. Payment processing is not yet implemented.`,
       [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Subscribe',
-          onPress: async () => {
-            // Simulate payment processing
-            await new Promise((resolve) => setTimeout(resolve, 2000));
-            Alert.alert(
-              'Success!',
-              `You've been upgraded to ${selectedPlan.name}! Your profile will now receive premium placement.`,
-              [{ text: 'OK', onPress: () => navigation.goBack() }]
-            );
-          },
-        },
+        { text: 'OK', style: 'default' },
       ]
     );
   };
@@ -87,8 +106,14 @@ export const PromotionPlansScreen = ({ navigation }: any) => {
             styles.planCard,
             isSelected && styles.planCardSelected,
             plan.isPopular && styles.popularCard,
+            tier === currentTier && styles.currentPlanCard,
           ]}
         >
+          {tier === currentTier && (
+            <View style={styles.currentBadge}>
+              <Text style={styles.currentText}>CURRENT PLAN</Text>
+            </View>
+          )}
           {plan.isPopular && (
             <View style={styles.popularBadge}>
               <LinearGradient colors={['#D4AF37', '#FFD700']} style={styles.popularGradient}>
@@ -141,6 +166,24 @@ export const PromotionPlansScreen = ({ navigation }: any) => {
       </TouchableOpacity>
     );
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Promotion Plans</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.accent.gold} />
+          <Text style={styles.loadingText}>Loading plans...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -294,11 +337,11 @@ export const PromotionPlansScreen = ({ navigation }: any) => {
               </Text>
             </View>
             <Button
-              title={selectedTier === 'FREE' ? 'Current Plan' : 'Subscribe'}
+              title={selectedTier === currentTier ? 'Current Plan' : 'Upgrade Plan'}
               onPress={handleSubscribe}
               variant="gradient"
               size="large"
-              disabled={selectedTier === 'FREE'}
+              disabled={selectedTier === currentTier}
               icon="rocket"
             />
           </View>
@@ -320,6 +363,17 @@ const styles = StyleSheet.create({
   },
   backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { ...textStyles.h2, fontWeight: '700' },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing['3xl'],
+  },
+  loadingText: {
+    ...textStyles.body,
+    color: colors.text.secondary,
+    marginTop: spacing.lg,
+  },
   hero: {
     padding: spacing['3xl'],
     alignItems: 'center',
@@ -368,6 +422,24 @@ const styles = StyleSheet.create({
     ...shadows.medium,
   },
   popularCard: { borderColor: colors.accent.gold + '50' },
+  currentPlanCard: {
+    borderColor: colors.success,
+    borderWidth: 3,
+  },
+  currentBadge: {
+    position: 'absolute',
+    top: -10,
+    left: spacing.lg,
+    backgroundColor: colors.success,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+  },
+  currentText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#FFF',
+  },
   popularBadge: {
     position: 'absolute',
     top: -10,

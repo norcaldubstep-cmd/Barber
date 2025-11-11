@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,160 +9,112 @@ import {
   TouchableOpacity,
   Dimensions,
   Modal,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, spacing, borderRadius, textStyles } from '../../theme';
-import { LikeButton } from '../../components/social/LikeButton';
-import { CommentButton } from '../../components/social/CommentButton';
+import { useAuthStore } from '../../store/authStore';
+import {
+  getBarberPortfolio,
+  addPortfolioImage,
+  deletePortfolioImage,
+} from '../../services/barberService';
 
 const { width } = Dimensions.get('window');
 const ITEM_WIDTH = (width - spacing.lg * 3) / 2;
 
-interface PortfolioItem {
-  id: string;
-  imageUrl: string;
-  title?: string;
-  description?: string;
-  likes: number;
-  comments: number;
-  liked?: boolean;
-  category: string;
-}
-
-// Mock portfolio data
-const MOCK_PORTFOLIO: PortfolioItem[] = [
-  {
-    id: '1',
-    imageUrl: 'https://picsum.photos/400/600?random=1',
-    title: 'Classic Fade',
-    description: 'Clean mid fade with textured top',
-    likes: 342,
-    comments: 28,
-    liked: false,
-    category: 'Fade',
-  },
-  {
-    id: '2',
-    imageUrl: 'https://picsum.photos/400/600?random=2',
-    title: 'Beard Sculpting',
-    description: 'Precision beard trim and shaping',
-    likes: 287,
-    comments: 15,
-    liked: true,
-    category: 'Beard',
-  },
-  {
-    id: '3',
-    imageUrl: 'https://picsum.photos/400/600?random=3',
-    title: 'Taper Cut',
-    description: 'Low taper with clean lineup',
-    likes: 423,
-    comments: 32,
-    liked: false,
-    category: 'Taper',
-  },
-  {
-    id: '4',
-    imageUrl: 'https://picsum.photos/400/600?random=4',
-    title: 'Design Work',
-    description: 'Custom hair design',
-    likes: 512,
-    comments: 45,
-    liked: false,
-    category: 'Design',
-  },
-  {
-    id: '5',
-    imageUrl: 'https://picsum.photos/400/600?random=5',
-    title: 'Lineup',
-    description: 'Sharp edge up and shape up',
-    likes: 198,
-    comments: 12,
-    liked: false,
-    category: 'Lineup',
-  },
-  {
-    id: '6',
-    imageUrl: 'https://picsum.photos/400/600?random=6',
-    title: 'Long Hair Cut',
-    description: 'Textured crop with layers',
-    likes: 265,
-    comments: 18,
-    liked: false,
-    category: 'Haircut',
-  },
-];
-
-const CATEGORIES = ['All', 'Fade', 'Beard', 'Taper', 'Design', 'Lineup', 'Haircut'];
-
-export const PortfolioScreen = ({ navigation, route }: any) => {
-  const { barberName = 'Mike Johnson' } = route.params || {};
-
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [selectedItem, setSelectedItem] = useState<PortfolioItem | null>(null);
+export const PortfolioScreen = ({ navigation }: any) => {
+  const { user } = useAuthStore();
+  const [portfolio, setPortfolio] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
 
-  const filteredPortfolio =
-    selectedCategory === 'All'
-      ? MOCK_PORTFOLIO
-      : MOCK_PORTFOLIO.filter((item) => item.category === selectedCategory);
+  useEffect(() => {
+    loadPortfolio();
+  }, []);
 
-  const handleItemPress = (item: PortfolioItem) => {
-    setSelectedItem(item);
-    setModalVisible(true);
+  const loadPortfolio = async () => {
+    if (!user?.id) {
+      Alert.alert('Error', 'User not found');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const images = await getBarberPortfolio(user.id);
+      setPortfolio(images);
+    } catch (err) {
+      console.error('Load portfolio error:', err);
+      Alert.alert('Error', 'Failed to load portfolio');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const renderCategoryChip = (category: string) => {
-    const isSelected = selectedCategory === category;
+  const handleAddImage = async () => {
+    // Mock image upload - in real app would use image picker
+    const mockImageUrl = `https://picsum.photos/400/600?random=${Date.now()}`;
 
-    return (
-      <TouchableOpacity
-        key={category}
-        onPress={() => setSelectedCategory(category)}
-        activeOpacity={0.7}
-      >
-        {isSelected ? (
-          <LinearGradient
-            colors={['#D4AF37', '#FFD700']}
-            style={styles.categoryChip}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Text style={[styles.categoryText, { color: '#000' }]}>{category}</Text>
-          </LinearGradient>
-        ) : (
-          <View style={[styles.categoryChip, styles.categoryChipInactive]}>
-            <Text style={styles.categoryText}>{category}</Text>
-          </View>
-        )}
-      </TouchableOpacity>
+    if (!user?.id) {
+      Alert.alert('Error', 'User not found');
+      return;
+    }
+
+    try {
+      await addPortfolioImage(user.id, mockImageUrl);
+      Alert.alert('Success', 'Image added to portfolio');
+      await loadPortfolio();
+    } catch (err) {
+      console.error('Add image error:', err);
+      Alert.alert('Error', 'Failed to add image');
+    }
+  };
+
+  const handleDeleteImage = (imageUrl: string) => {
+    if (!user?.id) {
+      Alert.alert('Error', 'User not found');
+      return;
+    }
+
+    Alert.alert(
+      'Delete Image',
+      'Are you sure you want to remove this image from your portfolio?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deletePortfolioImage(user.id, imageUrl);
+              Alert.alert('Deleted', 'Image removed from portfolio');
+              await loadPortfolio();
+              setModalVisible(false);
+            } catch (err) {
+              console.error('Delete image error:', err);
+              Alert.alert('Error', 'Failed to delete image');
+            }
+          },
+        },
+      ]
     );
   };
 
-  const renderPortfolioItem = ({ item }: { item: PortfolioItem }) => (
+  const handleItemPress = (imageUrl: string) => {
+    setSelectedImage(imageUrl);
+    setModalVisible(true);
+  };
+
+  const renderPortfolioItem = ({ item }: { item: string }) => (
     <TouchableOpacity
       style={styles.portfolioItem}
       onPress={() => handleItemPress(item)}
       activeOpacity={0.9}
     >
-      <Image source={{ uri: item.imageUrl }} style={styles.portfolioImage} />
-      <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.8)']}
-        style={styles.portfolioOverlay}
-      >
-        {item.title && <Text style={styles.portfolioTitle}>{item.title}</Text>}
-        <View style={styles.portfolioStats}>
-          <View style={styles.stat}>
-            <Ionicons name="heart" size={14} color={colors.error} />
-            <Text style={styles.statText}>{item.likes}</Text>
-          </View>
-          <View style={styles.stat}>
-            <Ionicons name="chatbubble" size={14} color={colors.accent.blue} />
-            <Text style={styles.statText}>{item.comments}</Text>
-          </View>
-        </View>
-      </LinearGradient>
+      <Image source={{ uri: item }} style={styles.portfolioImage} />
     </TouchableOpacity>
   );
 
@@ -173,35 +125,36 @@ export const PortfolioScreen = ({ navigation, route }: any) => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </TouchableOpacity>
-        <View style={styles.headerInfo}>
-          <Text style={styles.headerTitle}>Portfolio</Text>
-          <Text style={styles.headerSubtitle}>{barberName}</Text>
+        <Text style={styles.headerTitle}>My Portfolio</Text>
+        <TouchableOpacity style={styles.addButton} onPress={handleAddImage}>
+          <Ionicons name="add-circle" size={28} color={colors.accent.gold} />
+        </TouchableOpacity>
+      </View>
+
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.accent.gold} />
+          <Text style={styles.loadingText}>Loading portfolio...</Text>
         </View>
-        <View style={{ width: 40 }} />
-      </View>
-
-      {/* Categories */}
-      <View style={styles.categoriesContainer}>
+      ) : portfolio.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="images-outline" size={64} color={colors.text.secondary} />
+          <Text style={styles.emptyTitle}>No Portfolio Images</Text>
+          <Text style={styles.emptySubtitle}>
+            Add images to showcase your work to potential clients
+          </Text>
+        </View>
+      ) : (
         <FlatList
-          data={CATEGORIES}
-          renderItem={({ item }) => renderCategoryChip(item)}
-          keyExtractor={(item) => item}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categories}
+          data={portfolio}
+          renderItem={renderPortfolioItem}
+          keyExtractor={(item, index) => `${item}_${index}`}
+          numColumns={2}
+          contentContainerStyle={styles.portfolioGrid}
+          showsVerticalScrollIndicator={false}
+          columnWrapperStyle={styles.columnWrapper}
         />
-      </View>
-
-      {/* Portfolio Grid */}
-      <FlatList
-        data={filteredPortfolio}
-        renderItem={renderPortfolioItem}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        contentContainerStyle={styles.portfolioGrid}
-        showsVerticalScrollIndicator={false}
-        columnWrapperStyle={styles.columnWrapper}
-      />
+      )}
 
       {/* Detail Modal */}
       <Modal
@@ -217,20 +170,15 @@ export const PortfolioScreen = ({ navigation, route }: any) => {
             onPress={() => setModalVisible(false)}
           />
 
-          {selectedItem && (
+          {selectedImage && (
             <View style={styles.modalContent}>
               {/* Image */}
-              <Image source={{ uri: selectedItem.imageUrl }} style={styles.modalImage} />
+              <Image source={{ uri: selectedImage }} style={styles.modalImage} />
 
-              {/* Info */}
+              {/* Actions */}
               <View style={styles.modalInfo}>
                 <View style={styles.modalHeader}>
-                  <View style={styles.modalTitleContainer}>
-                    <Text style={styles.modalTitle}>{selectedItem.title || 'Untitled'}</Text>
-                    <View style={styles.categoryBadge}>
-                      <Text style={styles.categoryBadgeText}>{selectedItem.category}</Text>
-                    </View>
-                  </View>
+                  <Text style={styles.modalTitle}>Portfolio Image</Text>
                   <TouchableOpacity
                     onPress={() => setModalVisible(false)}
                     style={styles.closeButton}
@@ -239,20 +187,14 @@ export const PortfolioScreen = ({ navigation, route }: any) => {
                   </TouchableOpacity>
                 </View>
 
-                {selectedItem.description && (
-                  <Text style={styles.modalDescription}>{selectedItem.description}</Text>
-                )}
-
-                {/* Actions */}
                 <View style={styles.modalActions}>
-                  <LikeButton
-                    initialLiked={selectedItem.liked}
-                    initialCount={selectedItem.likes}
-                    size="large"
-                  />
-                  <CommentButton count={selectedItem.comments} size="large" />
-                  <TouchableOpacity style={styles.shareButton} activeOpacity={0.7}>
-                    <Ionicons name="share-outline" size={26} color={colors.text.secondary} />
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={() => handleDeleteImage(selectedImage)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="trash-outline" size={24} color={colors.error} />
+                    <Text style={styles.deleteButtonText}>Delete Image</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -283,40 +225,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerInfo: {
-    flex: 1,
-    alignItems: 'center',
-  },
   headerTitle: {
+    ...textStyles.h2,
+    fontWeight: '700',
+    flex: 1,
+    textAlign: 'center',
+  },
+  addButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing['3xl'],
+  },
+  loadingText: {
+    ...textStyles.body,
+    color: colors.text.secondary,
+    marginTop: spacing.lg,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing['3xl'],
+  },
+  emptyTitle: {
     ...textStyles.h3,
     fontWeight: '700',
+    marginTop: spacing.lg,
   },
-  headerSubtitle: {
-    ...textStyles.bodySmall,
-    color: colors.text.secondary,
-  },
-  categoriesContainer: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border.light,
-  },
-  categories: {
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
-  categoryChip: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
-  },
-  categoryChipInactive: {
-    backgroundColor: colors.background.secondary,
-    borderWidth: 1,
-    borderColor: colors.border.medium,
-  },
-  categoryText: {
+  emptySubtitle: {
     ...textStyles.body,
-    color: colors.text.primary,
-    fontWeight: '600',
+    color: colors.text.secondary,
+    textAlign: 'center',
+    marginTop: spacing.sm,
   },
   portfolioGrid: {
     padding: spacing.lg,
@@ -335,34 +282,6 @@ const styles = StyleSheet.create({
   portfolioImage: {
     width: '100%',
     height: '100%',
-  },
-  portfolioOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: spacing.md,
-    justifyContent: 'flex-end',
-  },
-  portfolioTitle: {
-    ...textStyles.body,
-    color: '#FFF',
-    fontWeight: '700',
-    marginBottom: spacing.xs,
-  },
-  portfolioStats: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  stat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  statText: {
-    ...textStyles.caption,
-    color: '#FFF',
-    fontWeight: '600',
   },
   modalContainer: {
     flex: 1,
@@ -394,44 +313,29 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: spacing.md,
   },
-  modalTitleContainer: {
-    flex: 1,
-    gap: spacing.sm,
-  },
   modalTitle: {
     ...textStyles.h3,
     fontWeight: '700',
+    flex: 1,
   },
-  categoryBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    backgroundColor: colors.background.tertiary,
-    borderRadius: borderRadius.full,
-  },
-  categoryBadgeText: {
-    ...textStyles.caption,
-    color: colors.accent.gold,
-    fontWeight: '700',
-  },
-  closeButton: {
-    marginLeft: spacing.md,
-  },
-  modalDescription: {
-    ...textStyles.body,
-    color: colors.text.secondary,
-    lineHeight: 22,
-    marginBottom: spacing.lg,
-  },
+  closeButton: {},
   modalActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xl,
     paddingTop: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.border.light,
   },
-  shareButton: {
-    marginLeft: 'auto',
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    backgroundColor: colors.error + '20',
+    borderRadius: borderRadius.lg,
+  },
+  deleteButtonText: {
+    ...textStyles.body,
+    color: colors.error,
+    fontWeight: '600',
   },
 });

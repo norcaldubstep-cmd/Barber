@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,97 +6,95 @@ import {
   SafeAreaView,
   FlatList,
   TouchableOpacity,
-  TextInput,
-  Modal,
+  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '../../components/common/Avatar';
-import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { colors, spacing, borderRadius, textStyles } from '../../theme';
+import { useAuthStore } from '../../store/authStore';
+import { getBarberReviews, getBarberRating } from '../../services/reviewsService';
 
 interface Review {
   id: string;
-  client: {
-    name: string;
-    avatar?: string;
-  };
+  clientName: string;
+  clientAvatar?: string;
   rating: number;
   comment: string;
-  service: string;
-  timestamp: Date;
-  helpful: number;
+  createdAt: string;
+  helpfulCount: number;
   images?: string[];
 }
 
-const MOCK_REVIEWS: Review[] = [
-  {
-    id: '1',
-    client: { name: 'John Doe' },
-    rating: 5,
-    comment: 'Amazing fade! Mike really knows what he\'s doing. Clean lines, great attention to detail. Will definitely be back!',
-    service: 'Premium Fade',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2),
-    helpful: 12,
-  },
-  {
-    id: '2',
-    client: { name: 'David Martinez' },
-    rating: 5,
-    comment: 'Best barber in town! Always consistent quality and great conversation.',
-    service: 'Haircut & Beard Trim',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7),
-    helpful: 8,
-  },
-  {
-    id: '3',
-    client: { name: 'James Wilson' },
-    rating: 4,
-    comment: 'Good cut overall. A bit of wait time but worth it. Professional service.',
-    service: 'Classic Cut',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 14),
-    helpful: 5,
-  },
-  {
-    id: '4',
-    client: { name: 'Robert Brown' },
-    rating: 5,
-    comment: 'Incredible experience! The atmosphere is great and the cut is perfect every time.',
-    service: 'Premium Fade',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30),
-    helpful: 15,
-  },
-];
+interface BarberRating {
+  averageRating: number;
+  totalReviews: number;
+  fiveStars: number;
+  fourStars: number;
+  threeStars: number;
+  twoStars: number;
+  oneStar: number;
+}
 
-export const ReviewsScreen = ({ route, navigation }: any) => {
-  const { barberId, barberName } = route.params;
-  const [reviews, setReviews] = useState<Review[]>(MOCK_REVIEWS);
-  const [showWriteModal, setShowWriteModal] = useState(false);
+export const ReviewsScreen = ({ navigation }: any) => {
+  const { user } = useAuthStore();
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [ratingData, setRatingData] = useState<BarberRating | null>(null);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 5 | 4 | 3 | 2 | 1>('all');
   const [sortBy, setSortBy] = useState<'recent' | 'helpful'>('recent');
 
-  // Write Review State
-  const [rating, setRating] = useState(0);
-  const [reviewText, setReviewText] = useState('');
+  useEffect(() => {
+    loadReviews();
+  }, []);
 
-  const calculateStats = () => {
-    const total = reviews.length;
-    const average = reviews.reduce((sum, r) => sum + r.rating, 0) / total;
-    const distribution = {
-      5: reviews.filter((r) => r.rating === 5).length,
-      4: reviews.filter((r) => r.rating === 4).length,
-      3: reviews.filter((r) => r.rating === 3).length,
-      2: reviews.filter((r) => r.rating === 2).length,
-      1: reviews.filter((r) => r.rating === 1).length,
-    };
-    return { total, average, distribution };
+  const loadReviews = async () => {
+    if (!user?.id) {
+      Alert.alert('Error', 'User not found');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const [fetchedReviews, rating] = await Promise.all([
+        getBarberReviews(user.id, 50),
+        getBarberRating(user.id),
+      ]);
+
+      setReviews(fetchedReviews);
+      if (rating) {
+        setRatingData({
+          averageRating: rating.averageRating,
+          totalReviews: rating.totalReviews,
+          fiveStars: rating.fiveStars,
+          fourStars: rating.fourStars,
+          threeStars: rating.threeStars,
+          twoStars: rating.twoStars,
+          oneStar: rating.oneStar,
+        });
+      }
+    } catch (err) {
+      console.error('Load reviews error:', err);
+      Alert.alert('Error', 'Failed to load reviews');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const stats = calculateStats();
+  const stats = ratingData || {
+    averageRating: 0,
+    totalReviews: 0,
+    fiveStars: 0,
+    fourStars: 0,
+    threeStars: 0,
+    twoStars: 0,
+    oneStar: 0,
+  };
 
-  const formatTimestamp = (date: Date): string => {
+  const formatTimestamp = (dateString: string): string => {
+    const date = new Date(dateString);
     const diffInDays = Math.floor(
       (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24)
     );
@@ -111,42 +109,11 @@ export const ReviewsScreen = ({ route, navigation }: any) => {
     .filter((r) => filter === 'all' || r.rating === filter)
     .sort((a, b) => {
       if (sortBy === 'recent') {
-        return b.timestamp.getTime() - a.timestamp.getTime();
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       } else {
-        return b.helpful - a.helpful;
+        return b.helpfulCount - a.helpfulCount;
       }
     });
-
-  const handleSubmitReview = async () => {
-    if (rating === 0) {
-      Alert.alert('Rating Required', 'Please select a star rating');
-      return;
-    }
-    if (reviewText.trim().length < 10) {
-      Alert.alert('Review Too Short', 'Please write at least 10 characters');
-      return;
-    }
-
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    const newReview: Review = {
-      id: Date.now().toString(),
-      client: { name: 'You' },
-      rating,
-      comment: reviewText,
-      service: 'Recent Service',
-      timestamp: new Date(),
-      helpful: 0,
-    };
-
-    setReviews([newReview, ...reviews]);
-    setShowWriteModal(false);
-    setRating(0);
-    setReviewText('');
-
-    Alert.alert('Success', 'Your review has been posted!');
-  };
 
   const renderStars = (rating: number, size: number = 16, interactive: boolean = false) => {
     return (
@@ -172,24 +139,23 @@ export const ReviewsScreen = ({ route, navigation }: any) => {
   const renderReview = ({ item }: { item: Review }) => (
     <Card style={styles.reviewCard}>
       <View style={styles.reviewHeader}>
-        <Avatar name={item.client.name} size="md" />
+        <Avatar name={item.clientName} size="md" imageUrl={item.clientAvatar} />
         <View style={styles.reviewHeaderText}>
-          <Text style={styles.clientName}>{item.client.name}</Text>
+          <Text style={styles.clientName}>{item.clientName}</Text>
           <View style={styles.reviewMeta}>
             {renderStars(item.rating)}
             <Text style={styles.metaDot}>•</Text>
-            <Text style={styles.timestamp}>{formatTimestamp(item.timestamp)}</Text>
+            <Text style={styles.timestamp}>{formatTimestamp(item.createdAt)}</Text>
           </View>
         </View>
       </View>
 
-      <Text style={styles.serviceTag}>{item.service}</Text>
       <Text style={styles.reviewComment}>{item.comment}</Text>
 
       <View style={styles.reviewFooter}>
         <TouchableOpacity style={styles.helpfulButton}>
           <Ionicons name="thumbs-up-outline" size={16} color={colors.text.secondary} />
-          <Text style={styles.helpfulText}>Helpful ({item.helpful})</Text>
+          <Text style={styles.helpfulText}>Helpful ({item.helpfulCount})</Text>
         </TouchableOpacity>
       </View>
     </Card>
@@ -206,60 +172,56 @@ export const ReviewsScreen = ({ route, navigation }: any) => {
         <View style={{ width: 40 }} />
       </View>
 
-      <FlatList
-        data={filteredReviews}
-        renderItem={renderReview}
-        keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
-        ListHeaderComponent={
-          <>
-            {/* Stats Card */}
-            <Card style={styles.statsCard}>
-              <View style={styles.statsHeader}>
-                <View style={styles.averageContainer}>
-                  <Text style={styles.averageNumber}>{stats.average.toFixed(1)}</Text>
-                  {renderStars(Math.round(stats.average), 20)}
-                  <Text style={styles.totalReviews}>{stats.total} reviews</Text>
-                </View>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.accent.gold} />
+          <Text style={styles.loadingText}>Loading reviews...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredReviews}
+          renderItem={renderReview}
+          keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            <>
+              {/* Stats Card */}
+              <Card style={styles.statsCard}>
+                <View style={styles.statsHeader}>
+                  <View style={styles.averageContainer}>
+                    <Text style={styles.averageNumber}>{stats.averageRating.toFixed(1)}</Text>
+                    {renderStars(Math.round(stats.averageRating), 20)}
+                    <Text style={styles.totalReviews}>{stats.totalReviews} reviews</Text>
+                  </View>
 
-                <View style={styles.distributionContainer}>
-                  {[5, 4, 3, 2, 1].map((star) => (
-                    <View key={star} style={styles.distributionRow}>
-                      <Text style={styles.distributionLabel}>{star}</Text>
-                      <Ionicons name="star" size={12} color={colors.accent.gold} />
-                      <View style={styles.distributionBar}>
-                        <View
-                          style={[
-                            styles.distributionFill,
-                            {
-                              width: `${
-                                stats.total > 0
-                                  ? (stats.distribution[star as keyof typeof stats.distribution] /
-                                      stats.total) *
-                                    100
-                                  : 0
-                              }%`,
-                            },
-                          ]}
-                        />
-                      </View>
-                      <Text style={styles.distributionCount}>
-                        {stats.distribution[star as keyof typeof stats.distribution]}
-                      </Text>
-                    </View>
-                  ))}
+                  <View style={styles.distributionContainer}>
+                    {[5, 4, 3, 2, 1].map((star) => {
+                      const starKey = star === 5 ? 'fiveStars' : star === 4 ? 'fourStars' : star === 3 ? 'threeStars' : star === 2 ? 'twoStars' : 'oneStar';
+                      return (
+                        <View key={star} style={styles.distributionRow}>
+                          <Text style={styles.distributionLabel}>{star}</Text>
+                          <Ionicons name="star" size={12} color={colors.accent.gold} />
+                          <View style={styles.distributionBar}>
+                            <View
+                              style={[
+                                styles.distributionFill,
+                                {
+                                  width: `${
+                                    stats.totalReviews > 0
+                                      ? (stats[starKey] / stats.totalReviews) * 100
+                                      : 0
+                                  }%`,
+                                },
+                              ]}
+                            />
+                          </View>
+                          <Text style={styles.distributionCount}>{stats[starKey]}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
                 </View>
-              </View>
-
-              <Button
-                title="Write a Review"
-                onPress={() => setShowWriteModal(true)}
-                variant="gradient"
-                size="medium"
-                fullWidth
-                icon="create-outline"
-              />
-            </Card>
+              </Card>
 
             {/* Filters */}
             <View style={styles.filtersSection}>
@@ -301,56 +263,7 @@ export const ReviewsScreen = ({ route, navigation }: any) => {
         }
         contentContainerStyle={styles.listContent}
       />
-
-      {/* Write Review Modal */}
-      <Modal
-        visible={showWriteModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowWriteModal(false)}
-      >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowWriteModal(false)}>
-              <Text style={styles.modalCancel}>Cancel</Text>
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Write Review</Text>
-            <View style={{ width: 60 }} />
-          </View>
-
-          <ScrollView style={styles.modalContent}>
-            <Text style={styles.modalLabel}>How was your experience?</Text>
-            <View style={styles.ratingSelector}>
-              {renderStars(rating, 40, true)}
-            </View>
-
-            <Text style={styles.modalLabel}>Tell us more</Text>
-            <TextInput
-              style={styles.reviewInput}
-              placeholder="Share details of your experience..."
-              placeholderTextColor={colors.text.secondary}
-              value={reviewText}
-              onChangeText={setReviewText}
-              multiline
-              numberOfLines={6}
-              maxLength={500}
-              textAlignVertical="top"
-            />
-            <Text style={styles.charCount}>{reviewText.length}/500</Text>
-          </ScrollView>
-
-          <View style={styles.modalFooter}>
-            <Button
-              title="Post Review"
-              onPress={handleSubmitReview}
-              variant="gradient"
-              size="large"
-              fullWidth
-              icon="checkmark"
-            />
-          </View>
-        </SafeAreaView>
-      </Modal>
+      )}
     </SafeAreaView>
   );
 };
@@ -367,6 +280,17 @@ const styles = StyleSheet.create({
   },
   backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { ...textStyles.h2, fontWeight: '700' },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing['3xl'],
+  },
+  loadingText: {
+    ...textStyles.body,
+    color: colors.text.secondary,
+    marginTop: spacing.lg,
+  },
   listContent: { padding: spacing.lg },
   statsCard: { padding: spacing.lg, marginBottom: spacing.lg },
   statsHeader: { flexDirection: 'row', marginBottom: spacing.lg, gap: spacing.xl },
@@ -409,49 +333,8 @@ const styles = StyleSheet.create({
   reviewMeta: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   metaDot: { ...textStyles.caption, color: colors.text.secondary },
   timestamp: { ...textStyles.caption, color: colors.text.secondary },
-  serviceTag: {
-    ...textStyles.caption,
-    color: colors.accent.gold,
-    fontWeight: '600',
-    marginBottom: spacing.sm,
-  },
   reviewComment: { ...textStyles.body, color: colors.text.primary, lineHeight: 22, marginBottom: spacing.md },
   reviewFooter: { flexDirection: 'row', justifyContent: 'flex-end' },
   helpfulButton: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   helpfulText: { ...textStyles.caption, color: colors.text.secondary },
-  modalContainer: { flex: 1, backgroundColor: colors.background.primary },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border.light,
-  },
-  modalCancel: { ...textStyles.body, color: colors.text.secondary },
-  modalTitle: { ...textStyles.h3, fontWeight: '700' },
-  modalContent: { flex: 1, padding: spacing.lg },
-  modalLabel: { ...textStyles.body, fontWeight: '700', marginBottom: spacing.md },
-  ratingSelector: { alignItems: 'center', marginBottom: spacing.xl },
-  reviewInput: {
-    backgroundColor: colors.background.secondary,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    ...textStyles.body,
-    color: colors.text.primary,
-    minHeight: 150,
-    borderWidth: 1,
-    borderColor: colors.border.light,
-  },
-  charCount: {
-    ...textStyles.caption,
-    color: colors.text.secondary,
-    textAlign: 'right',
-    marginTop: spacing.xs,
-  },
-  modalFooter: {
-    padding: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: colors.border.light,
-  },
 });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Modal,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,45 +17,19 @@ import { Input } from '../../components/common/Input';
 import { Card } from '../../components/common/Card';
 import { colors, spacing, borderRadius, textStyles } from '../../theme';
 import { Service } from '../../types/barber.types';
-
-const MOCK_SERVICES: Service[] = [
-  {
-    id: '1',
-    name: 'Premium Fade',
-    description: 'Expert fade with razor line-up and hot towel',
-    price: 65,
-    duration: 45,
-    isPopular: true,
-    isActive: true,
-  },
-  {
-    id: '2',
-    name: 'Haircut & Beard Trim',
-    description: 'Full haircut with beard shaping and trim',
-    price: 85,
-    duration: 60,
-    isActive: true,
-  },
-  {
-    id: '3',
-    name: 'Classic Cut',
-    description: 'Traditional haircut with scissors',
-    price: 45,
-    duration: 30,
-    isActive: true,
-  },
-  {
-    id: '4',
-    name: 'Buzz Cut',
-    description: 'Quick all-over clipper cut',
-    price: 35,
-    duration: 20,
-    isActive: false,
-  },
-];
+import { useAuthStore } from '../../store/authStore';
+import {
+  getBarberServices,
+  addBarberService,
+  updateBarberService,
+  deleteBarberService,
+} from '../../services/barberService';
 
 export const ServicesScreen = ({ navigation }: any) => {
-  const [services, setServices] = useState<Service[]>(MOCK_SERVICES);
+  const { user } = useAuthStore();
+  const [services, setServices] = useState<Service[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
 
@@ -67,6 +42,28 @@ export const ServicesScreen = ({ navigation }: any) => {
   const [isActive, setIsActive] = useState(true);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    loadServices();
+  }, []);
+
+  const loadServices = async () => {
+    if (!user?.id) {
+      Alert.alert('Error', 'User not found');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const fetchedServices = await getBarberServices(user.id);
+      setServices(fetchedServices);
+    } catch (err) {
+      console.error('Load services error:', err);
+      Alert.alert('Error', 'Failed to load services');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const openEditModal = (service: Service) => {
     setEditingService(service);
@@ -119,30 +116,49 @@ export const ServicesScreen = ({ navigation }: any) => {
       return;
     }
 
-    const serviceData: Service = {
-      id: editingService?.id || Date.now().toString(),
-      name,
-      description: description || undefined,
-      price: Number(price),
-      duration: Number(duration),
-      isPopular,
-      isActive,
-    };
-
-    if (editingService) {
-      // Update existing
-      setServices(services.map((s) => (s.id === editingService.id ? serviceData : s)));
-      Alert.alert('Success', 'Service updated successfully');
-    } else {
-      // Create new
-      setServices([...services, serviceData]);
-      Alert.alert('Success', 'Service created successfully');
+    if (!user?.id) {
+      Alert.alert('Error', 'User not found');
+      return;
     }
 
-    closeModal();
+    try {
+      setSaving(true);
+
+      const serviceData = {
+        name,
+        description: description || undefined,
+        price: Number(price),
+        duration: Number(duration),
+        isPopular,
+        isActive,
+      };
+
+      if (editingService) {
+        // Update existing
+        await updateBarberService(user.id, editingService.id, serviceData);
+        Alert.alert('Success', 'Service updated successfully');
+      } else {
+        // Create new
+        await addBarberService(user.id, serviceData);
+        Alert.alert('Success', 'Service created successfully');
+      }
+
+      closeModal();
+      await loadServices(); // Reload services
+    } catch (err) {
+      console.error('Save service error:', err);
+      Alert.alert('Error', 'Failed to save service');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = (service: Service) => {
+    if (!user?.id) {
+      Alert.alert('Error', 'User not found');
+      return;
+    }
+
     Alert.alert(
       'Delete Service',
       `Are you sure you want to delete "${service.name}"?`,
@@ -151,21 +167,34 @@ export const ServicesScreen = ({ navigation }: any) => {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
-            setServices(services.filter((s) => s.id !== service.id));
-            Alert.alert('Deleted', 'Service removed successfully');
+          onPress: async () => {
+            try {
+              await deleteBarberService(user.id, service.id);
+              Alert.alert('Deleted', 'Service removed successfully');
+              await loadServices(); // Reload services
+            } catch (err) {
+              console.error('Delete service error:', err);
+              Alert.alert('Error', 'Failed to delete service');
+            }
           },
         },
       ]
     );
   };
 
-  const toggleActive = (service: Service) => {
-    setServices(
-      services.map((s) =>
-        s.id === service.id ? { ...s, isActive: !s.isActive } : s
-      )
-    );
+  const toggleActive = async (service: Service) => {
+    if (!user?.id) {
+      Alert.alert('Error', 'User not found');
+      return;
+    }
+
+    try {
+      await updateBarberService(user.id, service.id, { isActive: !service.isActive });
+      await loadServices(); // Reload services
+    } catch (err) {
+      console.error('Toggle active error:', err);
+      Alert.alert('Error', 'Failed to update service status');
+    }
   };
 
   const activeServices = services.filter((s) => s.isActive);
@@ -240,9 +269,15 @@ export const ServicesScreen = ({ navigation }: any) => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Stats */}
-        <Card style={styles.statsCard}>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.accent.gold} />
+          <Text style={styles.loadingText}>Loading services...</Text>
+        </View>
+      ) : (
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {/* Stats */}
+          <Card style={styles.statsCard}>
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{activeServices.length}</Text>
@@ -291,8 +326,9 @@ export const ServicesScreen = ({ navigation }: any) => {
           </View>
         )}
 
-        <View style={{ height: spacing['4xl'] }} />
-      </ScrollView>
+          <View style={{ height: spacing['4xl'] }} />
+        </ScrollView>
+      )}
 
       {/* Add/Edit Modal */}
       <Modal
@@ -412,6 +448,8 @@ export const ServicesScreen = ({ navigation }: any) => {
               size="large"
               fullWidth
               icon="checkmark"
+              disabled={saving}
+              loading={saving}
             />
           </View>
         </SafeAreaView>
@@ -433,6 +471,17 @@ const styles = StyleSheet.create({
   backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { ...textStyles.h2, fontWeight: '700' },
   addButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing['3xl'],
+  },
+  loadingText: {
+    ...textStyles.body,
+    color: colors.text.secondary,
+    marginTop: spacing.lg,
+  },
   statsCard: { margin: spacing.lg, padding: spacing.lg },
   statsRow: { flexDirection: 'row', justifyContent: 'space-around' },
   statItem: { alignItems: 'center' },

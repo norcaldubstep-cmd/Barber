@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,15 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../../components/common/Card';
 import { colors, spacing, borderRadius, textStyles } from '../../theme';
+import { useAuthStore } from '../../store/authStore';
+import { getBarberAnalytics } from '../../services/barberService';
 
 const { width } = Dimensions.get('window');
 
@@ -28,82 +32,144 @@ interface AnalyticsData {
   revenueByDay: Array<{ day: string; amount: number }>;
 }
 
-const MOCK_DATA: Record<TimePeriod, AnalyticsData> = {
-  week: {
-    revenue: 2450,
-    bookings: 38,
-    newClients: 7,
-    profileViews: 142,
-    revenueChange: 12.5,
-    bookingsChange: 8.3,
-    topServices: [
-      { name: 'Premium Fade', count: 15, revenue: 975 },
-      { name: 'Haircut & Beard', count: 12, revenue: 1020 },
-      { name: 'Classic Cut', count: 11, revenue: 455 },
-    ],
-    revenueByDay: [
-      { day: 'Mon', amount: 325 },
-      { day: 'Tue', amount: 420 },
-      { day: 'Wed', amount: 380 },
-      { day: 'Thu', amount: 455 },
-      { day: 'Fri', amount: 510 },
-      { day: 'Sat', amount: 360 },
-      { day: 'Sun', amount: 0 },
-    ],
-  },
-  month: {
-    revenue: 9800,
-    bookings: 152,
-    newClients: 28,
-    profileViews: 567,
-    revenueChange: 15.2,
-    bookingsChange: 11.7,
-    topServices: [
-      { name: 'Premium Fade', count: 62, revenue: 4030 },
-      { name: 'Haircut & Beard', count: 48, revenue: 4080 },
-      { name: 'Classic Cut', count: 42, revenue: 1890 },
-    ],
-    revenueByDay: [
-      { day: 'W1', amount: 2100 },
-      { day: 'W2', amount: 2450 },
-      { day: 'W3', amount: 2680 },
-      { day: 'W4', amount: 2570 },
-    ],
-  },
-  year: {
-    revenue: 112500,
-    bookings: 1824,
-    newClients: 342,
-    profileViews: 6842,
-    revenueChange: 22.8,
-    bookingsChange: 18.5,
-    topServices: [
-      { name: 'Premium Fade', count: 742, revenue: 48230 },
-      { name: 'Haircut & Beard', count: 578, revenue: 49130 },
-      { name: 'Classic Cut', count: 504, revenue: 22680 },
-    ],
-    revenueByDay: [
-      { day: 'Jan', amount: 7800 },
-      { day: 'Feb', amount: 8200 },
-      { day: 'Mar', amount: 9100 },
-      { day: 'Apr', amount: 9400 },
-      { day: 'May', amount: 10200 },
-      { day: 'Jun', amount: 10800 },
-      { day: 'Jul', amount: 11200 },
-      { day: 'Aug', amount: 10900 },
-      { day: 'Sep', amount: 9800 },
-      { day: 'Oct', amount: 8900 },
-      { day: 'Nov', amount: 8100 },
-      { day: 'Dec', amount: 8100 },
-    ],
-  },
+const getDateRange = (period: TimePeriod): { startDate: Date; endDate: Date } => {
+  const endDate = new Date();
+  const startDate = new Date();
+
+  switch (period) {
+    case 'week':
+      startDate.setDate(endDate.getDate() - 7);
+      break;
+    case 'month':
+      startDate.setMonth(endDate.getMonth() - 1);
+      break;
+    case 'year':
+      startDate.setFullYear(endDate.getFullYear() - 1);
+      break;
+  }
+
+  return { startDate, endDate };
+};
+
+const formatRevenueData = (rawData: any[], period: TimePeriod) => {
+  if (period === 'week') {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const dayMap: Record<string, number> = {};
+
+    rawData.forEach((item) => {
+      const date = new Date(item.day);
+      const dayName = days[date.getDay()];
+      dayMap[dayName] = (dayMap[dayName] || 0) + item.amount;
+    });
+
+    return days.map((day) => ({ day, amount: dayMap[day] || 0 }));
+  } else if (period === 'month') {
+    const weeks: Record<string, number> = { W1: 0, W2: 0, W3: 0, W4: 0 };
+
+    rawData.forEach((item) => {
+      const date = new Date(item.day);
+      const dayOfMonth = date.getDate();
+      const weekNum = Math.ceil(dayOfMonth / 7);
+      weeks[`W${weekNum}`] = (weeks[`W${weekNum}`] || 0) + item.amount;
+    });
+
+    return Object.entries(weeks).map(([day, amount]) => ({ day, amount }));
+  } else {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthMap: Record<string, number> = {};
+
+    rawData.forEach((item) => {
+      const date = new Date(item.day);
+      const monthName = months[date.getMonth()];
+      monthMap[monthName] = (monthMap[monthName] || 0) + item.amount;
+    });
+
+    return months.map((month) => ({ day: month, amount: monthMap[month] || 0 }));
+  }
 };
 
 export const AnalyticsScreen = ({ navigation }: any) => {
+  const { user } = useAuthStore();
   const [period, setPeriod] = useState<TimePeriod>('month');
-  const data = MOCK_DATA[period];
+  const [data, setData] = useState<AnalyticsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const maxRevenue = Math.max(...data.revenueByDay.map((d) => d.amount));
+  useEffect(() => {
+    loadAnalytics();
+  }, [period]);
+
+  const loadAnalytics = async () => {
+    if (!user?.id) {
+      Alert.alert('Error', 'User not found');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { startDate, endDate } = getDateRange(period);
+      const analyticsData = await getBarberAnalytics(user.id, startDate, endDate);
+
+      const formattedRevenue = formatRevenueData(analyticsData.revenueByDay, period);
+
+      setData({
+        revenue: analyticsData.revenue,
+        bookings: analyticsData.bookings,
+        newClients: analyticsData.newClients,
+        profileViews: analyticsData.profileViews,
+        revenueChange: analyticsData.revenueChange,
+        bookingsChange: analyticsData.bookingsChange,
+        topServices: analyticsData.topServices,
+        revenueByDay: formattedRevenue,
+      });
+    } catch (err) {
+      console.error('Load analytics error:', err);
+      setError('Failed to load analytics');
+      Alert.alert('Error', 'Failed to load analytics data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Analytics</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.accent.gold} />
+          <Text style={styles.loadingText}>Loading analytics...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!data) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Analytics</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <Ionicons name="analytics-outline" size={64} color={colors.text.secondary} />
+          <Text style={styles.errorText}>No analytics data available</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const maxRevenue = Math.max(...data.revenueByDay.map((d) => d.amount), 1);
 
   const renderStatCard = (
     icon: keyof typeof Ionicons.glyphMap,
@@ -321,6 +387,23 @@ const styles = StyleSheet.create({
   },
   backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { ...textStyles.h2, fontWeight: '700' },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing['3xl'],
+  },
+  loadingText: {
+    ...textStyles.body,
+    color: colors.text.secondary,
+    marginTop: spacing.lg,
+  },
+  errorText: {
+    ...textStyles.h3,
+    color: colors.text.secondary,
+    marginTop: spacing.lg,
+    textAlign: 'center',
+  },
   periodSelector: {
     flexDirection: 'row',
     gap: spacing.sm,

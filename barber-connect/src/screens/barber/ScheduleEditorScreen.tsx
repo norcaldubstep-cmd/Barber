@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,20 +8,62 @@ import {
   TouchableOpacity,
   Switch,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { colors, spacing, borderRadius, textStyles } from '../../theme';
+import { useAuthStore } from '../../store/authStore';
 import {
-  WeekSchedule,
-  DaySchedule,
-  TimeSlot,
-  COMMON_SCHEDULES,
-} from '../../types/schedule.types';
+  getBarberAvailability,
+  updateBarberAvailability,
+} from '../../services/barberService';
 
 type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+
+interface DaySchedule {
+  isAvailable: boolean;
+  startTime: string;
+  endTime: string;
+}
+
+type WeekSchedule = {
+  [K in DayOfWeek]: DaySchedule;
+};
+
+const DEFAULT_SCHEDULE: WeekSchedule = {
+  monday: { isAvailable: true, startTime: '09:00', endTime: '18:00' },
+  tuesday: { isAvailable: true, startTime: '09:00', endTime: '18:00' },
+  wednesday: { isAvailable: true, startTime: '09:00', endTime: '18:00' },
+  thursday: { isAvailable: true, startTime: '09:00', endTime: '18:00' },
+  friday: { isAvailable: true, startTime: '09:00', endTime: '18:00' },
+  saturday: { isAvailable: true, startTime: '09:00', endTime: '17:00' },
+  sunday: { isAvailable: false, startTime: '09:00', endTime: '18:00' },
+};
+
+const TRADITIONAL_SCHEDULE: WeekSchedule = DEFAULT_SCHEDULE;
+
+const EXTENDED_SCHEDULE: WeekSchedule = {
+  monday: { isAvailable: true, startTime: '08:00', endTime: '20:00' },
+  tuesday: { isAvailable: true, startTime: '08:00', endTime: '20:00' },
+  wednesday: { isAvailable: true, startTime: '08:00', endTime: '20:00' },
+  thursday: { isAvailable: true, startTime: '08:00', endTime: '20:00' },
+  friday: { isAvailable: true, startTime: '08:00', endTime: '21:00' },
+  saturday: { isAvailable: true, startTime: '08:00', endTime: '21:00' },
+  sunday: { isAvailable: true, startTime: '10:00', endTime: '18:00' },
+};
+
+const WEEKEND_ONLY_SCHEDULE: WeekSchedule = {
+  monday: { isAvailable: false, startTime: '09:00', endTime: '18:00' },
+  tuesday: { isAvailable: false, startTime: '09:00', endTime: '18:00' },
+  wednesday: { isAvailable: false, startTime: '09:00', endTime: '18:00' },
+  thursday: { isAvailable: false, startTime: '09:00', endTime: '18:00' },
+  friday: { isAvailable: false, startTime: '09:00', endTime: '18:00' },
+  saturday: { isAvailable: true, startTime: '08:00', endTime: '20:00' },
+  sunday: { isAvailable: true, startTime: '10:00', endTime: '18:00' },
+};
 
 const DAYS_OF_WEEK: Array<{ key: DayOfWeek; label: string; short: string }> = [
   { key: 'monday', label: 'Monday', short: 'Mon' },
@@ -42,8 +84,36 @@ const TIME_SLOTS = [
 ];
 
 export const ScheduleEditorScreen = ({ navigation }: any) => {
-  const [schedule, setSchedule] = useState<WeekSchedule>(COMMON_SCHEDULES.TRADITIONAL);
+  const { user } = useAuthStore();
+  const [schedule, setSchedule] = useState<WeekSchedule>(DEFAULT_SCHEDULE);
   const [selectedDay, setSelectedDay] = useState<DayOfWeek | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    loadSchedule();
+  }, []);
+
+  const loadSchedule = async () => {
+    if (!user?.id) {
+      Alert.alert('Error', 'User not found');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const availability = await getBarberAvailability(user.id);
+
+      if (availability && availability.schedule) {
+        setSchedule(availability.schedule);
+      }
+    } catch (err) {
+      console.error('Load schedule error:', err);
+      Alert.alert('Error', 'Failed to load schedule');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const formatTime12Hour = (time24: string): string => {
     const [hours, minutes] = time24.split(':').map(Number);
@@ -96,7 +166,7 @@ export const ScheduleEditorScreen = ({ navigation }: any) => {
     );
   };
 
-  const applyTemplate = (templateName: keyof typeof COMMON_SCHEDULES) => {
+  const applyTemplate = (templateName: 'TRADITIONAL' | 'EXTENDED' | 'WEEKEND_ONLY') => {
     Alert.alert(
       'Apply Template',
       `Apply the ${templateName.toLowerCase().replace('_', ' ')} schedule?`,
@@ -105,7 +175,12 @@ export const ScheduleEditorScreen = ({ navigation }: any) => {
         {
           text: 'Apply',
           onPress: () => {
-            setSchedule(COMMON_SCHEDULES[templateName]);
+            const templates = {
+              TRADITIONAL: TRADITIONAL_SCHEDULE,
+              EXTENDED: EXTENDED_SCHEDULE,
+              WEEKEND_ONLY: WEEKEND_ONLY_SCHEDULE,
+            };
+            setSchedule(templates[templateName]);
             Alert.alert('Success', 'Template applied successfully');
           },
         },
@@ -121,11 +196,23 @@ export const ScheduleEditorScreen = ({ navigation }: any) => {
       return;
     }
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    Alert.alert('Success', 'Your schedule has been saved!', [
-      { text: 'OK', onPress: () => navigation.goBack() },
-    ]);
+    if (!user?.id) {
+      Alert.alert('Error', 'User not found');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await updateBarberAvailability(user.id, { schedule });
+      Alert.alert('Success', 'Your schedule has been saved!', [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
+    } catch (err) {
+      console.error('Save schedule error:', err);
+      Alert.alert('Error', 'Failed to save schedule');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const getTotalHoursPerWeek = (): number => {
@@ -142,6 +229,24 @@ export const ScheduleEditorScreen = ({ navigation }: any) => {
     });
     return total;
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Edit Schedule</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.accent.gold} />
+          <Text style={styles.loadingText}>Loading schedule...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -363,6 +468,8 @@ export const ScheduleEditorScreen = ({ navigation }: any) => {
           size="large"
           fullWidth
           icon="checkmark"
+          disabled={saving}
+          loading={saving}
         />
       </View>
     </SafeAreaView>
@@ -381,6 +488,17 @@ const styles = StyleSheet.create({
   },
   backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { ...textStyles.h2, fontWeight: '700' },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing['3xl'],
+  },
+  loadingText: {
+    ...textStyles.body,
+    color: colors.text.secondary,
+    marginTop: spacing.lg,
+  },
   statsCard: { margin: spacing.lg, padding: spacing.lg },
   statsRow: { flexDirection: 'row', justifyContent: 'space-around' },
   statItem: { alignItems: 'center', gap: spacing.xs },
