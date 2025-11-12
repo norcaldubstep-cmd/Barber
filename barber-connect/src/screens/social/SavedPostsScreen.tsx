@@ -30,7 +30,7 @@ export const SavedPostsScreen = ({ navigation }: any) => {
         const posts = await getSavedPosts();
         setSavedPosts(posts);
       } catch (error) {
-        console.error('Error fetching saved posts:', error);
+        // console.error('Error fetching saved posts:', error);
         Alert.alert('Error', 'Failed to load saved posts. Please try again.');
       } finally {
         setLoading(false);
@@ -47,7 +47,7 @@ export const SavedPostsScreen = ({ navigation }: any) => {
     try {
       await toggleSave(postId, true); // true = currently saved, so this will unsave
     } catch (error) {
-      console.error('Error unsaving post:', error);
+      // console.error('Error unsaving post:', error);
       // Revert on error - would need to refetch to properly restore
       Alert.alert('Error', 'Failed to unsave post. Please try again.');
       const posts = await getSavedPosts();

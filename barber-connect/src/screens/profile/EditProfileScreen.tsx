@@ -82,7 +82,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
       setEmail(user.email || '');
       setPhoneNumber(user.phoneNumber || '');
     } catch (error) {
-      console.error('Error loading profile:', error);
+      // console.error('Error loading profile:', error);
       Alert.alert('Error', 'Failed to load profile data');
     } finally {
       setIsLoadingProfile(false);
@@ -213,7 +213,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (error) {
-      console.error('Error updating profile:', error);
+      // console.error('Error updating profile:', error);
       Alert.alert('Error', 'Failed to update profile. Please try again.');
       setUploadingImage(null);
     } finally {

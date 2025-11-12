@@ -43,7 +43,7 @@ export const BookingsScreen = ({ navigation }: any) => {
       const allBookings = await getClientBookings(user.id);
       setBookings(allBookings);
     } catch (error) {
-      console.error('Error fetching bookings:', error);
+      // console.error('Error fetching bookings:', error);
       Alert.alert('Error', 'Failed to load bookings. Please try again.');
     } finally {
       setLoading(false);
@@ -71,7 +71,7 @@ export const BookingsScreen = ({ navigation }: any) => {
               Alert.alert('Success', 'Your booking has been cancelled');
               fetchBookings();
             } catch (error) {
-              console.error('Error cancelling booking:', error);
+              // console.error('Error cancelling booking:', error);
               Alert.alert('Error', 'Failed to cancel booking. Please try again.');
             }
           },

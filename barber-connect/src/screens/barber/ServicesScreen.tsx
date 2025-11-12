@@ -38,6 +38,7 @@ export const ServicesScreen = ({ navigation }: any) => {
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
   const [duration, setDuration] = useState('');
+  const [category, setCategory] = useState<'haircut' | 'beard' | 'styling' | 'coloring' | 'treatment' | 'other'>('haircut');
   const [isPopular, setIsPopular] = useState(false);
   const [isActive, setIsActive] = useState(true);
 
@@ -58,7 +59,7 @@ export const ServicesScreen = ({ navigation }: any) => {
       const fetchedServices = await getBarberServices(user.id);
       setServices(fetchedServices);
     } catch (err) {
-      console.error('Load services error:', err);
+      // console.error('Load services error:', err);
       Alert.alert('Error', 'Failed to load services');
     } finally {
       setLoading(false);
@@ -71,8 +72,8 @@ export const ServicesScreen = ({ navigation }: any) => {
     setDescription(service.description || '');
     setPrice(service.price.toString());
     setDuration(service.duration.toString());
+    setCategory(service.category);
     setIsPopular(service.isPopular || false);
-    setIsActive(service.isActive);
     setShowModal(true);
   };
 
@@ -82,6 +83,7 @@ export const ServicesScreen = ({ navigation }: any) => {
     setDescription('');
     setPrice('');
     setDuration('');
+    setCategory('haircut');
     setIsPopular(false);
     setIsActive(true);
     setShowModal(true);
@@ -129,13 +131,13 @@ export const ServicesScreen = ({ navigation }: any) => {
         description: description || undefined,
         price: Number(price),
         duration: Number(duration),
+        category,
         isPopular,
-        isActive,
       };
 
       if (editingService) {
         // Update existing
-        await updateBarberService(user.id, editingService.id, serviceData);
+        await updateBarberService(user.id, editingService.id, serviceData as any);
         Alert.alert('Success', 'Service updated successfully');
       } else {
         // Create new
@@ -146,7 +148,7 @@ export const ServicesScreen = ({ navigation }: any) => {
       closeModal();
       await loadServices(); // Reload services
     } catch (err) {
-      console.error('Save service error:', err);
+      // console.error('Save service error:', err);
       Alert.alert('Error', 'Failed to save service');
     } finally {
       setSaving(false);
@@ -173,7 +175,7 @@ export const ServicesScreen = ({ navigation }: any) => {
               Alert.alert('Deleted', 'Service removed successfully');
               await loadServices(); // Reload services
             } catch (err) {
-              console.error('Delete service error:', err);
+              // console.error('Delete service error:', err);
               Alert.alert('Error', 'Failed to delete service');
             }
           },
@@ -192,7 +194,7 @@ export const ServicesScreen = ({ navigation }: any) => {
       await updateBarberService(user.id, service.id, { isActive: !service.isActive });
       await loadServices(); // Reload services
     } catch (err) {
-      console.error('Toggle active error:', err);
+      // console.error('Toggle active error:', err);
       Alert.alert('Error', 'Failed to update service status');
     }
   };
@@ -449,7 +451,7 @@ export const ServicesScreen = ({ navigation }: any) => {
               fullWidth
               icon="checkmark"
               disabled={saving}
-              loading={saving}
+              isLoading={saving}
             />
           </View>
         </SafeAreaView>

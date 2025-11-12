@@ -101,7 +101,7 @@ export const getFeedPosts = async (lastDoc?: DocumentSnapshot, pageSize = 20): P
       lastDoc: snapshot.docs[snapshot.docs.length - 1] || null,
     };
   } catch (error) {
-    console.error('Error fetching feed posts:', error);
+    // console.error('Error fetching feed posts:', error);
     throw error;
   }
 };
@@ -137,7 +137,7 @@ export const getPostById = async (postId: string): Promise<Post | null> => {
       saved,
     } as Post;
   } catch (error) {
-    console.error('Error fetching post:', error);
+    // console.error('Error fetching post:', error);
     throw error;
   }
 };
@@ -193,7 +193,7 @@ export const createPost = async (
 
     return postRef.id;
   } catch (error) {
-    console.error('Error creating post:', error);
+    // console.error('Error creating post:', error);
     throw error;
   }
 };
@@ -223,7 +223,7 @@ export const toggleLike = async (postId: string, currentlyLiked: boolean): Promi
       });
     }
   } catch (error) {
-    console.error('Error toggling like:', error);
+    // console.error('Error toggling like:', error);
     throw error;
   }
 };
@@ -253,7 +253,7 @@ export const toggleSave = async (postId: string, currentlySaved: boolean): Promi
       });
     }
   } catch (error) {
-    console.error('Error toggling save:', error);
+    // console.error('Error toggling save:', error);
     throw error;
   }
 };
@@ -279,7 +279,7 @@ export const getPostComments = async (postId: string): Promise<Comment[]> => {
 
     return comments;
   } catch (error) {
-    console.error('Error fetching comments:', error);
+    // console.error('Error fetching comments:', error);
     throw error;
   }
 };
@@ -307,7 +307,7 @@ export const addComment = async (postId: string, text: string): Promise<void> =>
 
     // Cloud Function will handle incrementing commentsCount and creating notification
   } catch (error) {
-    console.error('Error adding comment:', error);
+    // console.error('Error adding comment:', error);
     throw error;
   }
 };
@@ -348,7 +348,7 @@ export const getSavedPosts = async (): Promise<Post[]> => {
 
     return posts.filter((p) => p !== null) as Post[];
   } catch (error) {
-    console.error('Error fetching saved posts:', error);
+    // console.error('Error fetching saved posts:', error);
     throw error;
   }
 };
@@ -370,7 +370,7 @@ export const deletePost = async (postId: string): Promise<void> => {
 
     // Cloud Function will handle decrementing postsCount
   } catch (error) {
-    console.error('Error deleting post:', error);
+    // console.error('Error deleting post:', error);
     throw error;
   }
 };

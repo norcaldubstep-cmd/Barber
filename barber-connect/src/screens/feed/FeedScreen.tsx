@@ -78,7 +78,7 @@ export const FeedScreen = ({ navigation }: any) => {
 
       setPosts(transformedPosts);
     } catch (error) {
-      console.error('Error loading feed:', error);
+      // console.error('Error loading feed:', error);
       Alert.alert('Error', 'Failed to load feed. Please try again.');
     } finally {
       setLoading(false);
@@ -90,7 +90,7 @@ export const FeedScreen = ({ navigation }: any) => {
     try {
       await loadFeed();
     } catch (error) {
-      console.error('Error refreshing feed:', error);
+      // console.error('Error refreshing feed:', error);
     } finally {
       setRefreshing(false);
     }
@@ -116,7 +116,7 @@ export const FeedScreen = ({ navigation }: any) => {
     try {
       await toggleLike(postId, post.isLiked);
     } catch (error) {
-      console.error('Error toggling like:', error);
+      // console.error('Error toggling like:', error);
       // Revert optimistic update on error
       setPosts((prev) =>
         prev.map((p) =>
@@ -153,7 +153,7 @@ export const FeedScreen = ({ navigation }: any) => {
     try {
       await toggleSave(postId, post.isSaved);
     } catch (error) {
-      console.error('Error toggling save:', error);
+      // console.error('Error toggling save:', error);
       // Revert optimistic update on error
       setPosts((prev) =>
         prev.map((p) =>

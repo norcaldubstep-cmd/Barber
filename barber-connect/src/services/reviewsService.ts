@@ -85,7 +85,7 @@ export const createReview = async (
 
     return reviewData;
   } catch (error) {
-    console.error('Create review error:', error);
+    // console.error('Create review error:', error);
     throw new Error('Failed to create review');
   }
 };
@@ -106,7 +106,7 @@ export const getBarberReviews = async (
     const snapshot = await getDocs(reviewsQuery);
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Review));
   } catch (error) {
-    console.error('Get barber reviews error:', error);
+    // console.error('Get barber reviews error:', error);
     return [];
   }
 };
@@ -122,7 +122,7 @@ export const getReview = async (reviewId: string): Promise<Review | null> => {
 
     return { id: reviewDoc.id, ...reviewDoc.data() } as Review;
   } catch (error) {
-    console.error('Get review error:', error);
+    // console.error('Get review error:', error);
     return null;
   }
 };
@@ -140,7 +140,7 @@ export const getClientReviews = async (clientId: string): Promise<Review[]> => {
     const snapshot = await getDocs(reviewsQuery);
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Review));
   } catch (error) {
-    console.error('Get client reviews error:', error);
+    // console.error('Get client reviews error:', error);
     return [];
   }
 };
@@ -182,7 +182,7 @@ export const updateReview = async (
       await updateBarberRating(review.barberId);
     }
   } catch (error) {
-    console.error('Update review error:', error);
+    // console.error('Update review error:', error);
     throw new Error('Failed to update review');
   }
 };
@@ -215,7 +215,7 @@ export const respondToReview = async (
       updatedAt: serverTimestamp(),
     });
   } catch (error) {
-    console.error('Respond to review error:', error);
+    // console.error('Respond to review error:', error);
     throw new Error('Failed to respond to review');
   }
 };
@@ -246,7 +246,7 @@ export const markReviewHelpful = async (reviewId: string, userId: string): Promi
       });
     }
   } catch (error) {
-    console.error('Mark review helpful error:', error);
+    // console.error('Mark review helpful error:', error);
     throw new Error('Failed to mark review as helpful');
   }
 };
@@ -262,7 +262,7 @@ export const getBarberRating = async (barberId: string): Promise<BarberRating | 
 
     return { barberId, ...ratingDoc.data() } as BarberRating;
   } catch (error) {
-    console.error('Get barber rating error:', error);
+    // console.error('Get barber rating error:', error);
     return null;
   }
 };
@@ -322,7 +322,7 @@ export const updateBarberRating = async (barberId: string): Promise<void> => {
       totalReviews: ratingData.totalReviews,
     });
   } catch (error) {
-    console.error('Update barber rating error:', error);
+    // console.error('Update barber rating error:', error);
   }
 };
 
@@ -341,7 +341,7 @@ const uploadReviewImages = async (reviewId: string, imageUris: string[]): Promis
 
     return await Promise.all(uploadPromises);
   } catch (error) {
-    console.error('Upload review images error:', error);
+    // console.error('Upload review images error:', error);
     return [];
   }
 };

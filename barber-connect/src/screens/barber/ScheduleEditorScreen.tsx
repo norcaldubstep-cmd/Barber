@@ -108,7 +108,7 @@ export const ScheduleEditorScreen = ({ navigation }: any) => {
         setSchedule(availability.schedule);
       }
     } catch (err) {
-      console.error('Load schedule error:', err);
+      // console.error('Load schedule error:', err);
       Alert.alert('Error', 'Failed to load schedule');
     } finally {
       setLoading(false);
@@ -208,7 +208,7 @@ export const ScheduleEditorScreen = ({ navigation }: any) => {
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (err) {
-      console.error('Save schedule error:', err);
+      // console.error('Save schedule error:', err);
       Alert.alert('Error', 'Failed to save schedule');
     } finally {
       setSaving(false);
@@ -469,7 +469,7 @@ export const ScheduleEditorScreen = ({ navigation }: any) => {
           fullWidth
           icon="checkmark"
           disabled={saving}
-          loading={saving}
+          isLoading={saving}
         />
       </View>
     </SafeAreaView>

@@ -47,7 +47,7 @@ export const ClientHomeScreen = ({ navigation }: any) => {
       const location = await getLocationOrDefault(forceRefresh);
       setUserLocation(location);
     } catch (err) {
-      console.error('Error loading location:', err);
+      // console.error('Error loading location:', err);
       // Even if there's an error, getLocationOrDefault should return default location
       const location = await getLocationOrDefault();
       setUserLocation(location);
@@ -77,7 +77,7 @@ export const ClientHomeScreen = ({ navigation }: any) => {
       );
       setFavoriteBarbers(favorites.filter((b) => b !== null) as BarberProfile[]);
     } catch (err) {
-      console.error('Error loading home data:', err);
+      // console.error('Error loading home data:', err);
       setError('Failed to load data. Please try again.');
     } finally {
       setIsLoading(false);

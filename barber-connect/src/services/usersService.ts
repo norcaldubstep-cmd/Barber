@@ -90,7 +90,7 @@ export const getUserById = async (userId: string): Promise<User | null> => {
       isFollowing,
     } as User;
   } catch (error) {
-    console.error('Error fetching user:', error);
+    // console.error('Error fetching user:', error);
     throw error;
   }
 };
@@ -124,7 +124,7 @@ export const toggleFollow = async (targetUserId: string, currentlyFollowing: boo
       // Cloud Function will handle incrementing counts and creating notification
     }
   } catch (error) {
-    console.error('Error toggling follow:', error);
+    // console.error('Error toggling follow:', error);
     throw error;
   }
 };
@@ -175,7 +175,7 @@ export const getFollowers = async (userId: string): Promise<User[]> => {
 
     return followers.filter((f) => f !== null) as User[];
   } catch (error) {
-    console.error('Error fetching followers:', error);
+    // console.error('Error fetching followers:', error);
     throw error;
   }
 };
@@ -217,7 +217,7 @@ export const getFollowing = async (userId: string): Promise<User[]> => {
 
     return following.filter((f) => f !== null) as User[];
   } catch (error) {
-    console.error('Error fetching following:', error);
+    // console.error('Error fetching following:', error);
     throw error;
   }
 };
@@ -272,7 +272,7 @@ export const search = async (searchQuery: string): Promise<SearchResult[]> => {
 
     return results;
   } catch (error) {
-    console.error('Error searching:', error);
+    // console.error('Error searching:', error);
     throw error;
   }
 };
@@ -320,7 +320,7 @@ export const getSuggestedUsers = async (): Promise<User[]> => {
 
     return suggested;
   } catch (error) {
-    console.error('Error fetching suggested users:', error);
+    // console.error('Error fetching suggested users:', error);
     throw error;
   }
 };
@@ -345,7 +345,7 @@ export const getTrendingHashtags = async (): Promise<Array<{ name: string; count
 
     return [];
   } catch (error) {
-    console.error('Error fetching trending hashtags:', error);
+    // console.error('Error fetching trending hashtags:', error);
     throw error;
   }
 };
@@ -361,7 +361,7 @@ export const getRecentSearches = async (): Promise<SearchResult[]> => {
 
     return [];
   } catch (error) {
-    console.error('Error fetching recent searches:', error);
+    // console.error('Error fetching recent searches:', error);
     throw error;
   }
 };
@@ -377,7 +377,7 @@ export const getUserFavorites = async (userId: string): Promise<string[]> => {
     const snapshot = await getDocs(favoritesQuery);
     return snapshot.docs.map((doc) => doc.data().barberId);
   } catch (error) {
-    console.error('Error fetching user favorites:', error);
+    // console.error('Error fetching user favorites:', error);
     return [];
   }
 };
@@ -391,7 +391,7 @@ export const addFavorite = async (userId: string, barberId: string): Promise<voi
       createdAt: serverTimestamp(),
     });
   } catch (error) {
-    console.error('Error adding favorite:', error);
+    // console.error('Error adding favorite:', error);
     throw new Error('Failed to add favorite');
   }
 };
@@ -411,7 +411,7 @@ export const removeFavorite = async (userId: string, barberId: string): Promise<
     const deletePromises = snapshot.docs.map((doc) => deleteDoc(doc.ref));
     await Promise.all(deletePromises);
   } catch (error) {
-    console.error('Error removing favorite:', error);
+    // console.error('Error removing favorite:', error);
     throw new Error('Failed to remove favorite');
   }
 };
@@ -428,7 +428,7 @@ export const updateUser = async (userId: string, updates: Partial<User>): Promis
       updatedAt: serverTimestamp(),
     } as any);
   } catch (error) {
-    console.error('Error updating user:', error);
+    // console.error('Error updating user:', error);
     throw new Error('Failed to update user');
   }
 };

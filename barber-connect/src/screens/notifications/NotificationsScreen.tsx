@@ -58,7 +58,7 @@ export const NotificationsScreen = ({ navigation }: any) => {
       await markNotificationAsRead(notificationId);
       // The real-time listener will update the UI automatically
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      // console.error('Error marking notification as read:', error);
     }
   };
 
@@ -68,7 +68,7 @@ export const NotificationsScreen = ({ navigation }: any) => {
       await markAllNotificationsAsRead(user.id);
       // The real-time listener will update the UI automatically
     } catch (error) {
-      console.error('Error marking all as read:', error);
+      // console.error('Error marking all as read:', error);
       Alert.alert('Error', 'Failed to mark all notifications as read');
     }
   };
@@ -78,7 +78,7 @@ export const NotificationsScreen = ({ navigation }: any) => {
       await deleteNotification(notificationId);
       // The real-time listener will update the UI automatically
     } catch (error) {
-      console.error('Error deleting notification:', error);
+      // console.error('Error deleting notification:', error);
       Alert.alert('Error', 'Failed to delete notification');
     }
   };

@@ -15,6 +15,9 @@ export interface PromotionPlan {
   boostMultiplier: number;
   priority: number;
   color: string;
+  icon?: string;
+  description?: string;
+  isPopular?: boolean;
 }
 
 export const PROMOTION_PLANS: PromotionPlan[] = [

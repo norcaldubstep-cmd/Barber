@@ -55,7 +55,7 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
         ]
       );
     } catch (error: any) {
-      console.error('Reset password error:', error);
+      // console.error('Reset password error:', error);
       const errorMessage = error.message || 'Failed to send reset email. Please try again.';
       setErrors({ email: errorMessage });
       Alert.alert('Error', errorMessage);
@@ -109,7 +109,7 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
               }}
               keyboardType="email-address"
               autoCapitalize="none"
-              leftIcon="mail"
+              icon="mail"
               error={errors.email}
             />
           </View>
@@ -121,7 +121,7 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
             variant="gradient"
             size="large"
             fullWidth
-            loading={loading}
+            isLoading={loading}
             disabled={loading}
             style={styles.sendButton}
           />

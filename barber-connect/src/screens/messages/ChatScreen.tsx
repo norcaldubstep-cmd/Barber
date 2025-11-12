@@ -70,13 +70,13 @@ export const ChatScreen = ({ route, navigation }: any) => {
 
       // Mark conversation as read when opening
       markConversationAsRead(conversationId, user.id).catch((err) => {
-        console.error('Error marking conversation as read:', err);
+        // console.error('Error marking conversation as read:', err);
       });
 
       // Cleanup subscription on unmount
       return () => unsubscribe();
     } catch (err) {
-      console.error('Error loading messages:', err);
+      // console.error('Error loading messages:', err);
       setLoading(false);
       Alert.alert('Error', 'Failed to load messages');
     }
@@ -141,7 +141,7 @@ export const ChatScreen = ({ route, navigation }: any) => {
       );
       // Message will be added to the list automatically via the real-time listener
     } catch (error) {
-      console.error('Error sending message:', error);
+      // console.error('Error sending message:', error);
       Alert.alert('Error', 'Failed to send message. Please try again.');
       // Restore the input text if sending failed
       setInputText(messageContent);
@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border.light,
     backgroundColor: colors.background.card,
-    ...shadows.small,
+    ...shadows.sm,
   },
   backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   headerInfo: {

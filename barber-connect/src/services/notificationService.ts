@@ -61,7 +61,7 @@ export const createNotification = async (
 
     return notificationData;
   } catch (error) {
-    console.error('Create notification error:', error);
+    // console.error('Create notification error:', error);
     throw new Error('Failed to create notification');
   }
 };
@@ -82,7 +82,7 @@ export const getUserNotifications = async (
     const snapshot = await getDocs(notificationsQuery);
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Notification));
   } catch (error) {
-    console.error('Get notifications error:', error);
+    // console.error('Get notifications error:', error);
     return [];
   }
 };
@@ -101,7 +101,7 @@ export const getUnreadNotifications = async (userId: string): Promise<Notificati
     const snapshot = await getDocs(notificationsQuery);
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Notification));
   } catch (error) {
-    console.error('Get unread notifications error:', error);
+    // console.error('Get unread notifications error:', error);
     return [];
   }
 };
@@ -112,7 +112,7 @@ export const getUnreadNotificationCount = async (userId: string): Promise<number
     const notifications = await getUnreadNotifications(userId);
     return notifications.length;
   } catch (error) {
-    console.error('Get unread count error:', error);
+    // console.error('Get unread count error:', error);
     return 0;
   }
 };
@@ -144,7 +144,7 @@ export const markNotificationAsRead = async (notificationId: string): Promise<vo
       isRead: true,
     });
   } catch (error) {
-    console.error('Mark notification as read error:', error);
+    // console.error('Mark notification as read error:', error);
   }
 };
 
@@ -159,7 +159,7 @@ export const markAllNotificationsAsRead = async (userId: string): Promise<void> 
 
     await Promise.all(updatePromises);
   } catch (error) {
-    console.error('Mark all as read error:', error);
+    // console.error('Mark all as read error:', error);
   }
 };
 
@@ -168,7 +168,7 @@ export const deleteNotification = async (notificationId: string): Promise<void> 
   try {
     await deleteDoc(doc(db, 'notifications', notificationId));
   } catch (error) {
-    console.error('Delete notification error:', error);
+    // console.error('Delete notification error:', error);
     throw new Error('Failed to delete notification');
   }
 };
@@ -184,7 +184,7 @@ export const deleteAllNotifications = async (userId: string): Promise<void> => {
 
     await Promise.all(deletePromises);
   } catch (error) {
-    console.error('Delete all notifications error:', error);
+    // console.error('Delete all notifications error:', error);
     throw new Error('Failed to delete notifications');
   }
 };
@@ -212,7 +212,7 @@ export const getNotificationPreferences = async (
 
     return { userId, ...prefDoc.data() } as NotificationPreferences;
   } catch (error) {
-    console.error('Get notification preferences error:', error);
+    // console.error('Get notification preferences error:', error);
     return null;
   }
 };
@@ -242,7 +242,7 @@ export const updateNotificationPreferences = async (
       await updateDoc(prefRef, preferences);
     }
   } catch (error) {
-    console.error('Update notification preferences error:', error);
+    // console.error('Update notification preferences error:', error);
     throw new Error('Failed to update preferences');
   }
 };
@@ -261,7 +261,7 @@ export const sendPushNotification = async (
     // Check user's notification preferences
     const preferences = await getNotificationPreferences(userId);
     if (!preferences || !preferences.pushEnabled) {
-      console.log('Push notifications disabled for user:', userId);
+      // console.log('Push notifications disabled for user:', userId);
       return;
     }
 
@@ -269,7 +269,7 @@ export const sendPushNotification = async (
     const pushTokens = await getUserPushTokens(userId);
 
     if (pushTokens.length === 0) {
-      console.log('No push tokens found for user:', userId);
+      // console.log('No push tokens found for user:', userId);
       return;
     }
 
@@ -297,18 +297,18 @@ export const sendPushNotification = async (
     });
 
     const result = await response.json();
-    console.log('Push notification sent:', result);
+    // console.log('Push notification sent:', result);
 
     // Check for errors
     if (result.data) {
       result.data.forEach((item: any, index: number) => {
         if (item.status === 'error') {
-          console.error('Push notification error for token:', pushTokens[index], item);
+          // console.error('Push notification error for token:', pushTokens[index], item);
         }
       });
     }
   } catch (error) {
-    console.error('Error sending push notification:', error);
+    // console.error('Error sending push notification:', error);
   }
 };
 
@@ -326,7 +326,7 @@ export const sendPushNotificationToMultipleUsers = async (
     const pushTokens = await getMultipleUsersPushTokens(userIds);
 
     if (pushTokens.length === 0) {
-      console.log('No push tokens found for users');
+      // console.log('No push tokens found for users');
       return;
     }
 
@@ -354,9 +354,9 @@ export const sendPushNotificationToMultipleUsers = async (
     });
 
     const result = await response.json();
-    console.log('Push notifications sent to multiple users:', result);
+    // console.log('Push notifications sent to multiple users:', result);
   } catch (error) {
-    console.error('Error sending push notifications to multiple users:', error);
+    // console.error('Error sending push notifications to multiple users:', error);
   }
 };
 
@@ -380,16 +380,16 @@ export const sendNotificationToFollowers = async (
     const followerIds = followersSnapshot.docs.map((doc) => doc.data().followerId);
 
     if (followerIds.length === 0) {
-      console.log('No followers found for user:', userId);
+      // console.log('No followers found for user:', userId);
       return;
     }
 
     // Send push notifications to all followers
     await sendPushNotificationToMultipleUsers(followerIds, title, body, data);
 
-    console.log(`Sent notification to ${followerIds.length} followers`);
+    // console.log(`Sent notification to ${followerIds.length} followers`);
   } catch (error) {
-    console.error('Error sending notification to followers:', error);
+    // console.error('Error sending notification to followers:', error);
   }
 };
 

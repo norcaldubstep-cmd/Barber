@@ -2,6 +2,9 @@ import { Service } from './booking.types';
 import { PromotionTier } from './promotion.types';
 import { Location } from './location.types';
 
+// Re-export Service for convenience
+export type { Service };
+
 export interface BarberProfile {
   id: string;
   userId: string;

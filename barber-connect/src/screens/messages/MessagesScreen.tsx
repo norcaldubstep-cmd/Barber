@@ -87,7 +87,7 @@ export const MessagesScreen = ({ navigation }: any) => {
       // Cleanup subscription on unmount
       return () => unsubscribe();
     } catch (err) {
-      console.error('Error loading conversations:', err);
+      // console.error('Error loading conversations:', err);
       setError('Failed to load conversations');
       setLoading(false);
       Alert.alert('Error', 'Failed to load conversations. Please try again.');

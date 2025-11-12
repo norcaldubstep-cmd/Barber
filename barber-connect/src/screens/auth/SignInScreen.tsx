@@ -55,7 +55,7 @@ export const SignInScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
       // Navigation is handled by authStore
     } catch (error: any) {
-      console.error('Sign in error:', error);
+      // console.error('Sign in error:', error);
       const errorMessage = error.message || 'Failed to sign in. Please check your credentials.';
       setErrors({ password: errorMessage });
       Alert.alert('Sign In Failed', errorMessage);

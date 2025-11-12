@@ -51,7 +51,7 @@ export const UserSearchScreen = ({ navigation }: any) => {
         })));
         setRecentSearches(recent);
       } catch (error) {
-        console.error('Error fetching initial data:', error);
+        // console.error('Error fetching initial data:', error);
       }
     };
 
@@ -71,7 +71,7 @@ export const UserSearchScreen = ({ navigation }: any) => {
       const results = await search(query);
       setSearchResults(results);
     } catch (error) {
-      console.error('Error searching:', error);
+      // console.error('Error searching:', error);
       Alert.alert('Error', 'Failed to search. Please try again.');
     } finally {
       setLoading(false);
@@ -94,7 +94,7 @@ export const UserSearchScreen = ({ navigation }: any) => {
     try {
       await toggleFollow(userId, currentlyFollowing);
     } catch (error) {
-      console.error('Error toggling follow:', error);
+      // console.error('Error toggling follow:', error);
       // Revert on error
       const revertList = (list: SearchResult[]) =>
         list.map((item) =>

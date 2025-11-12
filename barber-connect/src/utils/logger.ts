@@ -18,7 +18,7 @@ export const logger = {
    */
   log: (...args: any[]) => {
     if (isDev) {
-      console.log('[DEBUG]', ...args);
+      // console.log('[DEBUG]', ...args);
     }
   },
 
@@ -38,7 +38,7 @@ export const logger = {
    */
   warn: (...args: any[]) => {
     if (isDev) {
-      console.warn('[WARN]', ...args);
+      // console.warn('[WARN]', ...args);
     }
   },
 
@@ -48,7 +48,7 @@ export const logger = {
    * @param args - Any arguments to log
    */
   error: (...args: any[]) => {
-    console.error('[ERROR]', ...args);
+    // console.error('[ERROR]', ...args);
 
     // TODO: In production, send to Firebase Crashlytics or Sentry
     // if (!isDev) {
@@ -64,7 +64,7 @@ export const logger = {
    */
   api: (method: string, endpoint: string, data?: any) => {
     if (isDev) {
-      console.log(`[API] ${method} ${endpoint}`, data || '');
+      // console.log(`[API] ${method} ${endpoint}`, data || '');
     }
   },
 
@@ -75,7 +75,7 @@ export const logger = {
    */
   navigation: (screen: string, params?: any) => {
     if (isDev) {
-      console.log(`[NAV] → ${screen}`, params || '');
+      // console.log(`[NAV] → ${screen}`, params || '');
     }
   },
 
@@ -86,7 +86,7 @@ export const logger = {
    */
   action: (action: string, details?: any) => {
     if (isDev) {
-      console.log(`[ACTION] ${action}`, details || '');
+      // console.log(`[ACTION] ${action}`, details || '');
     }
   },
 };
@@ -102,7 +102,7 @@ export class PerformanceLogger {
     this.label = label;
     this.startTime = Date.now();
     if (isDev) {
-      console.log(`[PERF] ${label} - Started`);
+      // console.log(`[PERF] ${label} - Started`);
     }
   }
 
@@ -112,7 +112,7 @@ export class PerformanceLogger {
   end() {
     const duration = Date.now() - this.startTime;
     if (isDev) {
-      console.log(`[PERF] ${this.label} - Completed in ${duration}ms`);
+      // console.log(`[PERF] ${this.label} - Completed in ${duration}ms`);
     }
     return duration;
   }

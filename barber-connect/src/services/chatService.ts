@@ -73,7 +73,7 @@ export const getOrCreateConversation = async (
 
     return conversationRef.id;
   } catch (error) {
-    console.error('Get or create conversation error:', error);
+    // console.error('Get or create conversation error:', error);
     throw new Error('Failed to create conversation');
   }
 };
@@ -113,7 +113,7 @@ export const sendMessage = async (
 
     return messageData;
   } catch (error) {
-    console.error('Send message error:', error);
+    // console.error('Send message error:', error);
     throw new Error('Failed to send message');
   }
 };
@@ -165,7 +165,7 @@ export const sendImageMessage = async (
 
     return messageData;
   } catch (error) {
-    console.error('Send image message error:', error);
+    // console.error('Send image message error:', error);
     throw new Error('Failed to send image');
   }
 };
@@ -205,7 +205,7 @@ export const sendBookingMessage = async (
 
     return messageData;
   } catch (error) {
-    console.error('Send booking message error:', error);
+    // console.error('Send booking message error:', error);
     throw new Error('Failed to send booking');
   }
 };
@@ -228,7 +228,7 @@ export const getMessages = async (
 
     return messages.reverse(); // Reverse to show oldest first
   } catch (error) {
-    console.error('Get messages error:', error);
+    // console.error('Get messages error:', error);
     return [];
   }
 };
@@ -266,7 +266,7 @@ export const getUserConversations = async (userId: string): Promise<Conversation
     const snapshot = await getDocs(conversationsQuery);
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Conversation));
   } catch (error) {
-    console.error('Get conversations error:', error);
+    // console.error('Get conversations error:', error);
     return [];
   }
 };
@@ -299,7 +299,7 @@ export const markMessageAsRead = async (messageId: string): Promise<void> => {
       isRead: true,
     });
   } catch (error) {
-    console.error('Mark message as read error:', error);
+    // console.error('Mark message as read error:', error);
   }
 };
 
@@ -331,7 +331,7 @@ export const markConversationAsRead = async (
       [`unreadCount.${userId}`]: 0,
     });
   } catch (error) {
-    console.error('Mark conversation as read error:', error);
+    // console.error('Mark conversation as read error:', error);
   }
 };
 
@@ -341,7 +341,7 @@ export const getUnreadMessagesCount = async (userId: string): Promise<number> =>
     const conversations = await getUserConversations(userId);
     return conversations.reduce((total, conv) => total + (conv.unreadCount[userId] || 0), 0);
   } catch (error) {
-    console.error('Get unread count error:', error);
+    // console.error('Get unread count error:', error);
     return 0;
   }
 };
@@ -364,6 +364,6 @@ const updateConversationLastMessage = async (
       updatedAt: serverTimestamp(),
     });
   } catch (error) {
-    console.error('Update conversation last message error:', error);
+    // console.error('Update conversation last message error:', error);
   }
 };

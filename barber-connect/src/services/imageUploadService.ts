@@ -54,7 +54,7 @@ export const pickImage = async (
 
     return null;
   } catch (error) {
-    console.error('Error picking image:', error);
+    // console.error('Error picking image:', error);
     Alert.alert('Error', 'Failed to pick image. Please try again.');
     return null;
   }
@@ -95,7 +95,7 @@ export const pickImages = async (
 
     return [];
   } catch (error) {
-    console.error('Error picking images:', error);
+    // console.error('Error picking images:', error);
     Alert.alert('Error', 'Failed to pick images. Please try again.');
     return [];
   }
@@ -135,7 +135,7 @@ export const takePhoto = async (
 
     return null;
   } catch (error) {
-    console.error('Error taking photo:', error);
+    // console.error('Error taking photo:', error);
     Alert.alert('Error', 'Failed to take photo. Please try again.');
     return null;
   }
@@ -171,7 +171,7 @@ export const uploadImage = async (
 
     return downloadURL;
   } catch (error) {
-    console.error('Error uploading image:', error);
+    // console.error('Error uploading image:', error);
     throw new Error('Failed to upload image');
   }
 };
@@ -206,7 +206,7 @@ export const uploadImages = async (
 
     return downloadURLs;
   } catch (error) {
-    console.error('Error uploading images:', error);
+    // console.error('Error uploading images:', error);
     throw new Error('Failed to upload images');
   }
 };
@@ -231,7 +231,7 @@ export const deleteImage = async (url: string): Promise<void> => {
     const storageRef = ref(storage, path);
     await deleteObject(storageRef);
   } catch (error) {
-    console.error('Error deleting image:', error);
+    // console.error('Error deleting image:', error);
     throw new Error('Failed to delete image');
   }
 };

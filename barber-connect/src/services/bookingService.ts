@@ -85,7 +85,7 @@ export const createBooking = async (
 
     return bookingData;
   } catch (error) {
-    console.error('Create booking error:', error);
+    // console.error('Create booking error:', error);
     throw new Error('Failed to create booking');
   }
 };
@@ -101,7 +101,7 @@ export const getBookingById = async (bookingId: string): Promise<Booking | null>
 
     return { id: bookingDoc.id, ...bookingDoc.data() } as Booking;
   } catch (error) {
-    console.error('Get booking error:', error);
+    // console.error('Get booking error:', error);
     return null;
   }
 };
@@ -135,7 +135,7 @@ export const getClientBookings = async (
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Booking));
   } catch (error) {
-    console.error('Get client bookings error:', error);
+    // console.error('Get client bookings error:', error);
     return [];
   }
 };
@@ -169,7 +169,7 @@ export const getBarberBookings = async (
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Booking));
   } catch (error) {
-    console.error('Get barber bookings error:', error);
+    // console.error('Get barber bookings error:', error);
     return [];
   }
 };
@@ -192,7 +192,7 @@ export const getUpcomingClientBookings = async (clientId: string): Promise<Booki
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Booking));
   } catch (error) {
-    console.error('Get upcoming bookings error:', error);
+    // console.error('Get upcoming bookings error:', error);
     return [];
   }
 };
@@ -208,7 +208,7 @@ export const updateBookingStatus = async (
       updatedAt: serverTimestamp(),
     });
   } catch (error) {
-    console.error('Update booking status error:', error);
+    // console.error('Update booking status error:', error);
     throw new Error('Failed to update booking status');
   }
 };
@@ -218,7 +218,7 @@ export const cancelBooking = async (bookingId: string): Promise<void> => {
   try {
     await updateBookingStatus(bookingId, BookingStatus.CANCELLED);
   } catch (error) {
-    console.error('Cancel booking error:', error);
+    // console.error('Cancel booking error:', error);
     throw new Error('Failed to cancel booking');
   }
 };
@@ -228,7 +228,7 @@ export const deleteBooking = async (bookingId: string): Promise<void> => {
   try {
     await deleteDoc(doc(db, 'bookings', bookingId));
   } catch (error) {
-    console.error('Delete booking error:', error);
+    // console.error('Delete booking error:', error);
     throw new Error('Failed to delete booking');
   }
 };
@@ -318,7 +318,7 @@ export const getAvailableTimeSlots = async (
 
     return timeSlots;
   } catch (error) {
-    console.error('Get available time slots error:', error);
+    // console.error('Get available time slots error:', error);
     return [];
   }
 };
@@ -349,7 +349,7 @@ export const getAvailableDates = async (
 
     return dates;
   } catch (error) {
-    console.error('Get available dates error:', error);
+    // console.error('Get available dates error:', error);
     return [];
   }
 };
@@ -373,7 +373,7 @@ export const setBarberAvailability = async (
 
     await setDoc(doc(db, 'barberAvailability', barberId), availabilityData);
   } catch (error) {
-    console.error('Set barber availability error:', error);
+    // console.error('Set barber availability error:', error);
     throw new Error('Failed to set barber availability');
   }
 };

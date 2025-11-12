@@ -66,7 +66,7 @@ export const JobBoardScreen = ({ navigation }: any) => {
       const jobListings = await getJobListings(filters, 50);
       setJobs(jobListings);
     } catch (error) {
-      console.error('Error loading jobs:', error);
+      // console.error('Error loading jobs:', error);
       Alert.alert('Error', 'Failed to load jobs');
     } finally {
       setLoading(false);
@@ -80,7 +80,7 @@ export const JobBoardScreen = ({ navigation }: any) => {
       const applications = await getUserApplications(user.id);
       setUserApplications(applications);
     } catch (error) {
-      console.error('Error loading applications:', error);
+      // console.error('Error loading applications:', error);
     }
   };
 
@@ -127,7 +127,7 @@ export const JobBoardScreen = ({ navigation }: any) => {
               Alert.alert('Success', 'Your application has been submitted!');
               loadUserApplications();
             } catch (error) {
-              console.error('Error applying to job:', error);
+              // console.error('Error applying to job:', error);
               Alert.alert('Error', 'Failed to submit application');
             }
           },
@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
     height: 64,
     borderRadius: borderRadius.full,
     overflow: 'hidden',
-    ...shadows.large,
+    ...shadows.lg,
   },
   fabGradient: {
     width: '100%',

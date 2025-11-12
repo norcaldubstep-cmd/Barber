@@ -11,7 +11,7 @@ import { colors, spacing } from '../theme';
 
 const Stack = createNativeStackNavigator();
 
-export const RootNavigator = () => {
+export const RootNavigator = React.forwardRef<any, {}>((props, ref) => {
   const { isAuthenticated, isLoading, loadStoredAuth } = useAuthStore();
 
   useEffect(() => {
@@ -40,7 +40,7 @@ export const RootNavigator = () => {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={ref}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {isAuthenticated ? (
           <Stack.Screen name="Main" component={MainNavigator} />
@@ -50,7 +50,7 @@ export const RootNavigator = () => {
       </Stack.Navigator>
     </NavigationContainer>
   );
-};
+});
 
 const styles = StyleSheet.create({
   loadingContainer: {

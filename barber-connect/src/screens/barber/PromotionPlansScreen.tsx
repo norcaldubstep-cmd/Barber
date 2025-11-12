@@ -20,8 +20,8 @@ import { getBarberProfile } from '../../services/barberService';
 
 export const PromotionPlansScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
-  const [currentTier, setCurrentTier] = useState<PromotionTier>('FREE');
-  const [selectedTier, setSelectedTier] = useState<PromotionTier>('SILVER');
+  const [currentTier, setCurrentTier] = useState<PromotionTier>(PromotionTier.FREE);
+  const [selectedTier, setSelectedTier] = useState<PromotionTier>(PromotionTier.SILVER);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [loading, setLoading] = useState(true);
 
@@ -43,7 +43,7 @@ export const PromotionPlansScreen = ({ navigation }: any) => {
         setSelectedTier(profile.promotionTier);
       }
     } catch (err) {
-      console.error('Load tier error:', err);
+      // console.error('Load tier error:', err);
       Alert.alert('Error', 'Failed to load current plan');
     } finally {
       setLoading(false);
@@ -269,11 +269,11 @@ export const PromotionPlansScreen = ({ navigation }: any) => {
 
         {/* Plans */}
         <View style={styles.plansContainer}>
-          {renderPlanCard('FREE')}
-          {renderPlanCard('BRONZE')}
-          {renderPlanCard('SILVER')}
-          {renderPlanCard('GOLD')}
-          {renderPlanCard('PLATINUM')}
+          {renderPlanCard(PromotionTier.FREE)}
+          {renderPlanCard(PromotionTier.BRONZE)}
+          {renderPlanCard(PromotionTier.SILVER)}
+          {renderPlanCard(PromotionTier.GOLD)}
+          {renderPlanCard(PromotionTier.PLATINUM)}
         </View>
 
         {/* Comparison Table */}
@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
   },
   planCardSelected: {
     borderColor: colors.accent.gold,
-    ...shadows.medium,
+    ...shadows.md,
   },
   popularCard: { borderColor: colors.accent.gold + '50' },
   currentPlanCard: {
@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border.light,
     backgroundColor: colors.background.card,
-    ...shadows.large,
+    ...shadows.lg,
   },
   bottomContent: { gap: spacing.md },
   bottomInfo: {

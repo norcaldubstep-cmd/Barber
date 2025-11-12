@@ -125,7 +125,7 @@ export const AnalyticsScreen = ({ navigation }: any) => {
         revenueByDay: formattedRevenue,
       });
     } catch (err) {
-      console.error('Load analytics error:', err);
+      // console.error('Load analytics error:', err);
       setError('Failed to load analytics');
       Alert.alert('Error', 'Failed to load analytics data');
     } finally {

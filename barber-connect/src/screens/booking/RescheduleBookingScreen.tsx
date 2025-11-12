@@ -64,7 +64,7 @@ export const RescheduleBookingScreen = ({ navigation, route }: any) => {
 
         setTimeSlots(formattedSlots);
       } catch (error) {
-        console.error('Error fetching time slots:', error);
+        // console.error('Error fetching time slots:', error);
         Alert.alert('Error', 'Failed to load available time slots');
         setTimeSlots([]);
       } finally {
@@ -145,7 +145,7 @@ export const RescheduleBookingScreen = ({ navigation, route }: any) => {
         ]
       );
     } catch (error) {
-      console.error('Reschedule error:', error);
+      // console.error('Reschedule error:', error);
       Alert.alert(
         'Reschedule Failed',
         'Failed to reschedule booking. Please try again.',
@@ -317,7 +317,7 @@ export const RescheduleBookingScreen = ({ navigation, route }: any) => {
           variant="gradient"
           size="large"
           fullWidth
-          loading={loading}
+          isLoading={loading}
           disabled={!selectedTime || loading}
         />
       </View>

@@ -55,7 +55,7 @@ export const PortfolioScreen = ({ navigation }: any) => {
       const images = await getBarberPortfolio(user.id);
       setPortfolio(images);
     } catch (err) {
-      console.error('Load portfolio error:', err);
+      // console.error('Load portfolio error:', err);
       Alert.alert('Error', 'Failed to load portfolio');
     } finally {
       setLoading(false);
@@ -123,7 +123,7 @@ export const PortfolioScreen = ({ navigation }: any) => {
       Alert.alert('Success', 'Image added to portfolio');
       await loadPortfolio();
     } catch (err) {
-      console.error('Add image error:', err);
+      // console.error('Add image error:', err);
       Alert.alert('Error', 'Failed to add image. Please try again.');
     } finally {
       setUploading(false);
@@ -151,7 +151,7 @@ export const PortfolioScreen = ({ navigation }: any) => {
               await loadPortfolio();
               setModalVisible(false);
             } catch (err) {
-              console.error('Delete image error:', err);
+              // console.error('Delete image error:', err);
               Alert.alert('Error', 'Failed to delete image');
             }
           },

@@ -82,7 +82,7 @@ export const createJobListing = async (
 
     return jobData;
   } catch (error) {
-    console.error('Create job listing error:', error);
+    // console.error('Create job listing error:', error);
     throw new Error('Failed to create job listing');
   }
 };
@@ -98,7 +98,7 @@ export const getJobListing = async (jobId: string): Promise<JobListing | null> =
 
     return { id: jobDoc.id, ...jobDoc.data() } as JobListing;
   } catch (error) {
-    console.error('Get job listing error:', error);
+    // console.error('Get job listing error:', error);
     return null;
   }
 };
@@ -148,7 +148,7 @@ export const getJobListings = async (
 
     return jobs;
   } catch (error) {
-    console.error('Get job listings error:', error);
+    // console.error('Get job listings error:', error);
     return [];
   }
 };
@@ -166,7 +166,7 @@ export const getEmployerJobs = async (employerId: string): Promise<JobListing[]>
     const snapshot = await getDocs(jobsQuery);
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as JobListing));
   } catch (error) {
-    console.error('Get employer jobs error:', error);
+    // console.error('Get employer jobs error:', error);
     return [];
   }
 };
@@ -182,7 +182,7 @@ export const updateJobListing = async (
       updatedAt: serverTimestamp(),
     });
   } catch (error) {
-    console.error('Update job listing error:', error);
+    // console.error('Update job listing error:', error);
     throw new Error('Failed to update job listing');
   }
 };
@@ -195,7 +195,7 @@ export const updateJobStatus = async (jobId: string, status: JobStatus): Promise
       updatedAt: serverTimestamp(),
     });
   } catch (error) {
-    console.error('Update job status error:', error);
+    // console.error('Update job status error:', error);
     throw new Error('Failed to update job status');
   }
 };
@@ -205,7 +205,7 @@ export const deleteJobListing = async (jobId: string): Promise<void> => {
   try {
     await deleteDoc(doc(db, 'jobs', jobId));
   } catch (error) {
-    console.error('Delete job listing error:', error);
+    // console.error('Delete job listing error:', error);
     throw new Error('Failed to delete job listing');
   }
 };
@@ -256,7 +256,7 @@ export const submitJobApplication = async (
 
     return applicationData;
   } catch (error) {
-    console.error('Submit job application error:', error);
+    // console.error('Submit job application error:', error);
     throw new Error('Failed to submit application');
   }
 };
@@ -274,7 +274,7 @@ export const getJobApplications = async (jobId: string): Promise<JobApplication[
     const snapshot = await getDocs(applicationsQuery);
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as JobApplication));
   } catch (error) {
-    console.error('Get job applications error:', error);
+    // console.error('Get job applications error:', error);
     return [];
   }
 };
@@ -292,7 +292,7 @@ export const getUserApplications = async (applicantId: string): Promise<JobAppli
     const snapshot = await getDocs(applicationsQuery);
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as JobApplication));
   } catch (error) {
-    console.error('Get user applications error:', error);
+    // console.error('Get user applications error:', error);
     return [];
   }
 };
@@ -310,7 +310,7 @@ export const updateApplicationStatus = async (
       updatedAt: serverTimestamp(),
     });
   } catch (error) {
-    console.error('Update application status error:', error);
+    // console.error('Update application status error:', error);
     throw new Error('Failed to update application status');
   }
 };
@@ -325,7 +325,7 @@ export const deleteJobApplication = async (applicationId: string, jobId: string)
       applicationCount: increment(-1),
     });
   } catch (error) {
-    console.error('Delete application error:', error);
+    // console.error('Delete application error:', error);
     throw new Error('Failed to delete application');
   }
 };
@@ -374,7 +374,7 @@ export const searchJobs = async (
 
     return jobs;
   } catch (error) {
-    console.error('Search jobs error:', error);
+    // console.error('Search jobs error:', error);
     return [];
   }
 };

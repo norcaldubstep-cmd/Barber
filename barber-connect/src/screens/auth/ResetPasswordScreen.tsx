@@ -117,7 +117,7 @@ export const ResetPasswordScreen = ({ navigation, route }: any) => {
               }}
               keyboardType="number-pad"
               maxLength={6}
-              leftIcon="shield-checkmark"
+              icon="shield-checkmark"
               error={errors.code}
             />
 
@@ -129,8 +129,8 @@ export const ResetPasswordScreen = ({ navigation, route }: any) => {
                 setPassword(text);
                 if (errors.password) setErrors({ ...errors, password: '' });
               }}
-              secureTextEntry
-              leftIcon="lock-closed"
+              isPassword
+              icon="lock-closed"
               error={errors.password}
             />
 
@@ -142,8 +142,8 @@ export const ResetPasswordScreen = ({ navigation, route }: any) => {
                 setConfirmPassword(text);
                 if (errors.confirmPassword) setErrors({ ...errors, confirmPassword: '' });
               }}
-              secureTextEntry
-              leftIcon="lock-closed"
+              isPassword
+              icon="lock-closed"
               error={errors.confirmPassword}
             />
           </View>
@@ -155,7 +155,7 @@ export const ResetPasswordScreen = ({ navigation, route }: any) => {
             variant="gradient"
             size="large"
             fullWidth
-            loading={loading}
+            isLoading={loading}
             disabled={loading}
             style={styles.resetButton}
           />

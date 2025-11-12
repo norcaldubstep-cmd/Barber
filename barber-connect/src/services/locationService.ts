@@ -34,12 +34,12 @@ export const requestLocationPermission = async (): Promise<boolean> => {
     const { status, canAskAgain } = await Location.requestForegroundPermissionsAsync();
 
     if (status === 'denied' && !canAskAgain) {
-      console.log('Location permission permanently denied. User must enable in settings.');
+      // console.log('Location permission permanently denied. User must enable in settings.');
     }
 
     return status === 'granted';
   } catch (error) {
-    console.error('Error requesting location permission:', error);
+    // console.error('Error requesting location permission:', error);
     return false;
   }
 };
@@ -56,7 +56,7 @@ export const checkLocationPermission = async (): Promise<LocationPermissionStatu
       canAskAgain,
     };
   } catch (error) {
-    console.error('Error checking location permission:', error);
+    // console.error('Error checking location permission:', error);
     return { granted: false, canAskAgain: true };
   }
 };
@@ -69,7 +69,7 @@ export const getCurrentLocation = async (): Promise<LocationCoords | null> => {
   try {
     const hasPermission = await requestLocationPermission();
     if (!hasPermission) {
-      console.log('Location permission not granted');
+      // console.log('Location permission not granted');
       return null;
     }
 
@@ -87,7 +87,7 @@ export const getCurrentLocation = async (): Promise<LocationCoords | null> => {
 
     return coords;
   } catch (error) {
-    console.error('Error getting current location:', error);
+    // console.error('Error getting current location:', error);
     return null;
   }
 };
@@ -112,14 +112,14 @@ export const getStoredLocation = async (): Promise<LocationCoords | null> => {
 
     // Check if cached location is still valid
     if (now - timestamp > CACHE_DURATION) {
-      console.log('Cached location expired');
+      // console.log('Cached location expired');
       return null;
     }
 
     const location = JSON.parse(locationStr);
     return location;
   } catch (error) {
-    console.error('Error getting stored location:', error);
+    // console.error('Error getting stored location:', error);
     return null;
   }
 };
@@ -140,9 +140,9 @@ export const saveLocation = async (latitude: number, longitude: number): Promise
       AsyncStorage.setItem(LOCATION_TIMESTAMP_KEY, timestamp),
     ]);
 
-    console.log('Location cached successfully');
+    // console.log('Location cached successfully');
   } catch (error) {
-    console.error('Error saving location:', error);
+    // console.error('Error saving location:', error);
   }
 };
 
@@ -156,9 +156,9 @@ export const clearStoredLocation = async (): Promise<void> => {
       AsyncStorage.removeItem(LOCATION_STORAGE_KEY),
       AsyncStorage.removeItem(LOCATION_TIMESTAMP_KEY),
     ]);
-    console.log('Cached location cleared');
+    // console.log('Cached location cleared');
   } catch (error) {
-    console.error('Error clearing location:', error);
+    // console.error('Error clearing location:', error);
   }
 };
 
@@ -177,7 +177,7 @@ export const getLocationOrDefault = async (forceRefresh = false): Promise<Locati
     if (!forceRefresh) {
       const cached = await getStoredLocation();
       if (cached) {
-        console.log('Using cached location:', cached);
+        // console.log('Using cached location:', cached);
         return cached;
       }
     }
@@ -185,15 +185,15 @@ export const getLocationOrDefault = async (forceRefresh = false): Promise<Locati
     // Try to get current location
     const current = await getCurrentLocation();
     if (current) {
-      console.log('Using current location:', current);
+      // console.log('Using current location:', current);
       return current;
     }
 
     // Fall back to default location
-    console.log('Using default location (San Francisco)');
+    // console.log('Using default location (San Francisco)');
     return DEFAULT_LOCATION;
   } catch (error) {
-    console.error('Error getting location, using default:', error);
+    // console.error('Error getting location, using default:', error);
     return DEFAULT_LOCATION;
   }
 };
@@ -206,7 +206,7 @@ export const isLocationEnabled = async (): Promise<boolean> => {
   try {
     return await Location.hasServicesEnabledAsync();
   } catch (error) {
-    console.error('Error checking location services:', error);
+    // console.error('Error checking location services:', error);
     return false;
   }
 };

@@ -76,7 +76,7 @@ export const ReviewsScreen = ({ navigation }: any) => {
         });
       }
     } catch (err) {
-      console.error('Load reviews error:', err);
+      // console.error('Load reviews error:', err);
       Alert.alert('Error', 'Failed to load reviews');
     } finally {
       setLoading(false);
@@ -115,13 +115,13 @@ export const ReviewsScreen = ({ navigation }: any) => {
       }
     });
 
-  const renderStars = (rating: number, size: number = 16, interactive: boolean = false) => {
+  const renderStars = (rating: number, size: number = 16, interactive: boolean = false, onRatingChange?: (rating: number) => void) => {
     return (
       <View style={styles.starsRow}>
         {[1, 2, 3, 4, 5].map((star) => (
           <TouchableOpacity
             key={star}
-            onPress={() => interactive && setRating(star)}
+            onPress={() => interactive && onRatingChange && onRatingChange(star)}
             disabled={!interactive}
             activeOpacity={0.7}
           >

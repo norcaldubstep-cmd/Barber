@@ -78,7 +78,7 @@ export const DiscoverScreen = ({ navigation }: any) => {
       const status = await getLocationStatusMessage();
       setLocationStatus(status);
     } catch (err) {
-      console.error('Error loading location:', err);
+      // console.error('Error loading location:', err);
       // Even if there's an error, getLocationOrDefault should return default location
       const location = await getLocationOrDefault();
       setUserLocation(location);
@@ -102,7 +102,7 @@ export const DiscoverScreen = ({ navigation }: any) => {
       const fetchedBarbers = await searchBarbers(searchFilters, 50);
       setBarbers(fetchedBarbers);
     } catch (err) {
-      console.error('Error loading barbers:', err);
+      // console.error('Error loading barbers:', err);
       setError('Failed to load barbers. Please try again.');
     } finally {
       setIsLoading(false);

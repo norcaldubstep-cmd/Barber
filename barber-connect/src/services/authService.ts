@@ -67,7 +67,7 @@ export const signUp = async (
 
     return userData;
   } catch (error: any) {
-    console.error('Sign up error:', error);
+    // console.error('Sign up error:', error);
     throw new Error(getAuthErrorMessage(error.code));
   }
 };
@@ -97,7 +97,7 @@ export const signIn = async (email: string, password: string): Promise<User> => 
 
     return userData;
   } catch (error: any) {
-    console.error('Sign in error:', error);
+    // console.error('Sign in error:', error);
     throw new Error(getAuthErrorMessage(error.code));
   }
 };
@@ -107,7 +107,7 @@ export const logOut = async (): Promise<void> => {
   try {
     await signOut(auth);
   } catch (error: any) {
-    console.error('Sign out error:', error);
+    // console.error('Sign out error:', error);
     throw new Error('Failed to sign out');
   }
 };
@@ -117,7 +117,7 @@ export const resetPassword = async (email: string): Promise<void> => {
   try {
     await sendPasswordResetEmail(auth, email);
   } catch (error: any) {
-    console.error('Password reset error:', error);
+    // console.error('Password reset error:', error);
     throw new Error(getAuthErrorMessage(error.code));
   }
 };
@@ -131,7 +131,7 @@ export const resendVerificationEmail = async (): Promise<void> => {
     }
     await sendEmailVerification(currentUser);
   } catch (error: any) {
-    console.error('Resend verification error:', error);
+    // console.error('Resend verification error:', error);
     throw new Error('Failed to send verification email');
   }
 };
@@ -150,7 +150,7 @@ export const getCurrentUser = async (): Promise<User | null> => {
 
     return userDoc.data() as User;
   } catch (error: any) {
-    console.error('Get current user error:', error);
+    // console.error('Get current user error:', error);
     return null;
   }
 };
@@ -174,7 +174,7 @@ export const updateUserProfile = async (
       }
     }
   } catch (error: any) {
-    console.error('Update profile error:', error);
+    // console.error('Update profile error:', error);
     throw new Error('Failed to update profile');
   }
 };
@@ -214,7 +214,7 @@ export const signInWithGoogle = async (idToken: string): Promise<User> => {
 
     return userData;
   } catch (error: any) {
-    console.error('Google sign in error:', error);
+    // console.error('Google sign in error:', error);
     throw new Error('Failed to sign in with Google');
   }
 };
@@ -314,7 +314,7 @@ export const changePassword = async (
     // Update password
     await updatePassword(currentUser, newPassword);
   } catch (error: any) {
-    console.error('Change password error:', error);
+    // console.error('Change password error:', error);
     if (error.code === 'auth/wrong-password') {
       throw new Error('Current password is incorrect');
     }

@@ -35,7 +35,7 @@ export const getBarberProfile = async (barberId: string): Promise<BarberProfile 
 
     return { id: barberDoc.id, ...barberDoc.data() } as BarberProfile;
   } catch (error) {
-    console.error('Get barber profile error:', error);
+    // console.error('Get barber profile error:', error);
     return null;
   }
 };
@@ -52,7 +52,7 @@ export const updateBarberProfile = async (
       lastUpdated: serverTimestamp(),
     });
   } catch (error) {
-    console.error('Update barber profile error:', error);
+    // console.error('Update barber profile error:', error);
     throw new Error('Failed to update barber profile');
   }
 };
@@ -78,7 +78,7 @@ export const uploadBarberProfileImage = async (
 
     return downloadURL;
   } catch (error) {
-    console.error('Upload profile image error:', error);
+    // console.error('Upload profile image error:', error);
     throw new Error('Failed to upload profile image');
   }
 };
@@ -103,7 +103,7 @@ export const uploadBarberCoverImage = async (
 
     return downloadURL;
   } catch (error) {
-    console.error('Upload cover image error:', error);
+    // console.error('Upload cover image error:', error);
     throw new Error('Failed to upload cover image');
   }
 };
@@ -132,7 +132,7 @@ export const uploadPortfolioImage = async (
 
     return downloadURL;
   } catch (error) {
-    console.error('Upload portfolio image error:', error);
+    // console.error('Upload portfolio image error:', error);
     throw new Error('Failed to upload portfolio image');
   }
 };
@@ -156,7 +156,7 @@ export const deletePortfolioImage = async (
       portfolioImages: updatedImages,
     });
   } catch (error) {
-    console.error('Delete portfolio image error:', error);
+    // console.error('Delete portfolio image error:', error);
     throw new Error('Failed to delete portfolio image');
   }
 };
@@ -171,7 +171,7 @@ export const updateBarberServices = async (
       services,
     });
   } catch (error) {
-    console.error('Update services error:', error);
+    // console.error('Update services error:', error);
     throw new Error('Failed to update services');
   }
 };
@@ -268,7 +268,7 @@ export const searchBarbers = async (
 
     return barbers;
   } catch (error) {
-    console.error('Search barbers error:', error);
+    // console.error('Search barbers error:', error);
     return [];
   }
 };
@@ -309,7 +309,7 @@ export const getNearbyBarbers = async (
 
     return barbers;
   } catch (error) {
-    console.error('Get nearby barbers error:', error);
+    // console.error('Get nearby barbers error:', error);
     return [];
   }
 };
@@ -328,7 +328,7 @@ export const getFeaturedBarbers = async (limitCount: number = 10): Promise<Barbe
     const snapshot = await getDocs(barbersQuery);
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as BarberProfile));
   } catch (error) {
-    console.error('Get featured barbers error:', error);
+    // console.error('Get featured barbers error:', error);
     return [];
   }
 };
@@ -347,7 +347,7 @@ export const getTopRatedBarbers = async (limitCount: number = 10): Promise<Barbe
     const snapshot = await getDocs(barbersQuery);
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as BarberProfile));
   } catch (error) {
-    console.error('Get top rated barbers error:', error);
+    // console.error('Get top rated barbers error:', error);
     return [];
   }
 };
@@ -383,7 +383,7 @@ export const getBarberServices = async (barberId: string): Promise<Service[]> =>
     const barberProfile = await getBarberProfile(barberId);
     return barberProfile?.services || [];
   } catch (error) {
-    console.error('Get barber services error:', error);
+    // console.error('Get barber services error:', error);
     return [];
   }
 };
@@ -407,7 +407,7 @@ export const addBarberService = async (
     const updatedServices = [...barberProfile.services, newService];
     await updateBarberServices(barberId, updatedServices);
   } catch (error) {
-    console.error('Add barber service error:', error);
+    // console.error('Add barber service error:', error);
     throw new Error('Failed to add service');
   }
 };
@@ -429,7 +429,7 @@ export const updateBarberService = async (
     );
     await updateBarberServices(barberId, updatedServices);
   } catch (error) {
-    console.error('Update barber service error:', error);
+    // console.error('Update barber service error:', error);
     throw new Error('Failed to update service');
   }
 };
@@ -448,7 +448,7 @@ export const deleteBarberService = async (
     const updatedServices = barberProfile.services.filter((s) => s.id !== serviceId);
     await updateBarberServices(barberId, updatedServices);
   } catch (error) {
-    console.error('Delete barber service error:', error);
+    // console.error('Delete barber service error:', error);
     throw new Error('Failed to delete service');
   }
 };
@@ -459,7 +459,7 @@ export const getBarberPortfolio = async (barberId: string): Promise<string[]> =>
     const barberProfile = await getBarberProfile(barberId);
     return barberProfile?.portfolioImages || [];
   } catch (error) {
-    console.error('Get barber portfolio error:', error);
+    // console.error('Get barber portfolio error:', error);
     return [];
   }
 };
@@ -478,7 +478,7 @@ export const addPortfolioImage = async (
       portfolioImages: [...currentImages, imageUrl],
     });
   } catch (error) {
-    console.error('Add portfolio image error:', error);
+    // console.error('Add portfolio image error:', error);
     throw new Error('Failed to add portfolio image');
   }
 };
@@ -494,7 +494,7 @@ export const getBarberAvailability = async (barberId: string): Promise<any> => {
 
     return { barberId, ...availabilityDoc.data() };
   } catch (error) {
-    console.error('Get barber availability error:', error);
+    // console.error('Get barber availability error:', error);
     return null;
   }
 };
@@ -511,7 +511,7 @@ export const updateBarberAvailability = async (
       lastUpdated: serverTimestamp(),
     }, { merge: true });
   } catch (error) {
-    console.error('Update barber availability error:', error);
+    // console.error('Update barber availability error:', error);
     throw new Error('Failed to update availability');
   }
 };
@@ -579,7 +579,7 @@ export const getBarberAnalytics = async (
       })),
     };
   } catch (error) {
-    console.error('Get barber analytics error:', error);
+    // console.error('Get barber analytics error:', error);
     return {
       revenue: 0,
       bookings: 0,

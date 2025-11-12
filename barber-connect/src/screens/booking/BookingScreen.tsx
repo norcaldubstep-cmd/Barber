@@ -51,7 +51,7 @@ export const BookingScreen = ({ route, navigation }: any) => {
           navigation.goBack();
         }
       } catch (error) {
-        console.error('Error fetching barber:', error);
+        // console.error('Error fetching barber:', error);
         Alert.alert('Error', 'Failed to load barber profile. Please try again.');
         navigation.goBack();
       } finally {
@@ -81,7 +81,7 @@ export const BookingScreen = ({ route, navigation }: any) => {
 
         setTimeSlots(formattedSlots);
       } catch (error) {
-        console.error('Error fetching time slots:', error);
+        // console.error('Error fetching time slots:', error);
         Alert.alert('Error', 'Failed to load available time slots');
         setTimeSlots([]);
       } finally {
@@ -162,14 +162,14 @@ export const BookingScreen = ({ route, navigation }: any) => {
 
       await createBooking(
         user.id,
-        user.displayName || 'Guest',
+        `${user.firstName} ${user.lastName}` || 'Guest',
         barberId,
         barber.displayName,
         [selectedService],
         dateString,
         startTime24,
         notes || undefined,
-        user.profileImage,
+        user.profileImageUrl,
         barber.profileImage
       );
 
@@ -187,7 +187,7 @@ export const BookingScreen = ({ route, navigation }: any) => {
         ]
       );
     } catch (error) {
-      console.error('Booking error:', error);
+      // console.error('Booking error:', error);
       Alert.alert(
         'Booking Failed',
         'Failed to create booking. Please try again.',
@@ -545,7 +545,7 @@ export const BookingScreen = ({ route, navigation }: any) => {
             onPress={step === 'confirm' ? handleBooking : handleContinue}
             variant="gradient"
             size="large"
-            loading={loading}
+            isLoading={loading}
             disabled={
               loading ||
               (step === 'service' && !selectedService) ||
@@ -665,7 +665,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   dateCardSelected: {
-    ...shadows.medium,
+    ...shadows.md,
   },
   dateDay: { ...textStyles.caption, color: colors.text.secondary, fontWeight: '600' },
   dateDaySelected: { color: '#000', fontWeight: '700' },
@@ -695,7 +695,7 @@ const styles = StyleSheet.create({
     opacity: 0.3,
   },
   timeSlotSelected: {
-    ...shadows.small,
+    ...shadows.sm,
   },
   timeText: { ...textStyles.bodySmall, fontWeight: '600', color: colors.text.primary },
   timeTextDisabled: { color: colors.text.secondary },
@@ -735,7 +735,7 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border.light,
     padding: spacing.lg,
     backgroundColor: colors.background.card,
-    ...shadows.large,
+    ...shadows.lg,
   },
   priceContainer: {
     flexDirection: 'row',

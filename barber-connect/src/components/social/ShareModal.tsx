@@ -88,7 +88,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
             avatar: u.avatar,
           })));
         } catch (error) {
-          console.error('Error fetching suggested users:', error);
+          // console.error('Error fetching suggested users:', error);
         }
       };
 
@@ -121,7 +121,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
           });
           onClose();
         } catch (error) {
-          console.error(error);
+          // console.error(error);
         }
         break;
     }

@@ -30,7 +30,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       // Sign out from Firebase first
       await logOut();
     } catch (error) {
-      console.error('Firebase logout error:', error);
+      // console.error('Firebase logout error:', error);
       // Continue with local signout even if Firebase fails
     }
     // Clear local storage

@@ -6,7 +6,7 @@ export const requestLocationPermission = async (): Promise<boolean> => {
     const { status } = await ExpoLocation.requestForegroundPermissionsAsync();
     return status === 'granted';
   } catch (error) {
-    console.error('Error requesting location permission:', error);
+    // console.error('Error requesting location permission:', error);
     return false;
   }
 };
@@ -25,7 +25,7 @@ export const getCurrentLocation = async (): Promise<Location | null> => {
       longitude: location.coords.longitude,
     };
   } catch (error) {
-    console.error('Error getting current location:', error);
+    // console.error('Error getting current location:', error);
     return null;
   }
 };
@@ -52,7 +52,7 @@ export const getAddressFromCoords = async (
     }
     return null;
   } catch (error) {
-    console.error('Error reverse geocoding:', error);
+    // console.error('Error reverse geocoding:', error);
     return null;
   }
 };

@@ -153,7 +153,7 @@ export const CreatePostScreen = ({ navigation }: any) => {
         },
       ]);
     } catch (error) {
-      console.error('Error creating post:', error);
+      // console.error('Error creating post:', error);
       Alert.alert('Error', 'Failed to publish post. Please try again.');
       setUploadProgress(null);
     } finally {

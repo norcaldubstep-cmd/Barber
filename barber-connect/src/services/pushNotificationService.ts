@@ -75,19 +75,19 @@ export const requestNotificationPermissions = async (): Promise<boolean> => {
 
     // Check if we got permission
     if (finalStatus !== 'granted') {
-      console.log('Push notification permissions not granted');
+      // console.log('Push notification permissions not granted');
       return false;
     }
 
     // iOS: Check if provisional authorization
     if (Platform.OS === 'ios' && finalStatus === 'granted') {
       const settings = await Notifications.getPermissionsAsync();
-      console.log('iOS notification settings:', settings);
+      // console.log('iOS notification settings:', settings);
     }
 
     return true;
   } catch (error) {
-    console.error('Error requesting notification permissions:', error);
+    // console.error('Error requesting notification permissions:', error);
     return false;
   }
 };
@@ -103,14 +103,14 @@ export const getPushToken = async (): Promise<string | null> => {
       const token = await Notifications.getExpoPushTokenAsync({
         projectId: Constants.expoConfig?.extra?.eas?.projectId,
       });
-      console.log('Expo Push Token:', token.data);
+      // console.log('Expo Push Token:', token.data);
       return token.data;
     } else {
-      console.log('Push notifications only work on physical devices');
+      // console.log('Push notifications only work on physical devices');
       return null;
     }
   } catch (error) {
-    console.error('Error getting push token:', error);
+    // console.error('Error getting push token:', error);
     return null;
   }
 };
@@ -129,7 +129,7 @@ export const registerForPushNotifications = async (): Promise<string | null> => 
     // Request permissions
     const hasPermission = await requestNotificationPermissions();
     if (!hasPermission) {
-      console.log('Push notification permissions denied');
+      // console.log('Push notification permissions denied');
       return null;
     }
 
@@ -137,7 +137,7 @@ export const registerForPushNotifications = async (): Promise<string | null> => 
     const token = await getPushToken();
     return token;
   } catch (error) {
-    console.error('Error registering for push notifications:', error);
+    // console.error('Error registering for push notifications:', error);
     return null;
   }
 };
@@ -159,9 +159,9 @@ export const savePushTokenToUser = async (
       createdAt: serverTimestamp(),
       lastUsed: serverTimestamp(),
     });
-    console.log('Push token saved successfully');
+    // console.log('Push token saved successfully');
   } catch (error) {
-    console.error('Error saving push token:', error);
+    // console.error('Error saving push token:', error);
     throw new Error('Failed to save push token');
   }
 };
@@ -177,9 +177,9 @@ export const removePushTokenFromUser = async (
   try {
     const tokenRef = doc(db, 'users', userId, 'pushTokens', token);
     await deleteDoc(tokenRef);
-    console.log('Push token removed successfully');
+    // console.log('Push token removed successfully');
   } catch (error) {
-    console.error('Error removing push token:', error);
+    // console.error('Error removing push token:', error);
   }
 };
 
@@ -192,7 +192,7 @@ export const getUserPushTokens = async (userId: string): Promise<string[]> => {
     const snapshot = await getDocs(tokensQuery);
     return snapshot.docs.map((doc) => doc.data().token);
   } catch (error) {
-    console.error('Error getting user push tokens:', error);
+    // console.error('Error getting user push tokens:', error);
     return [];
   }
 };
@@ -215,7 +215,7 @@ export const getMultipleUsersPushTokens = async (
     // Remove duplicates
     return Array.from(new Set(allTokens));
   } catch (error) {
-    console.error('Error getting multiple users push tokens:', error);
+    // console.error('Error getting multiple users push tokens:', error);
     return [];
   }
 };
@@ -244,10 +244,10 @@ export const scheduleLocalNotification = async (
       trigger: triggerSeconds > 0 ? { seconds: triggerSeconds } : null,
     });
 
-    console.log('Local notification scheduled:', notificationId);
+    // console.log('Local notification scheduled:', notificationId);
     return notificationId;
   } catch (error) {
-    console.error('Error scheduling local notification:', error);
+    // console.error('Error scheduling local notification:', error);
     throw new Error('Failed to schedule notification');
   }
 };
@@ -268,7 +268,7 @@ export const scheduleBookingReminder = async (
 
     // Don't schedule if trigger time is in the past
     if (triggerTime <= now) {
-      console.log('Booking time is too soon, not scheduling reminder');
+      // console.log('Booking time is too soon, not scheduling reminder');
       return null;
     }
 
@@ -285,7 +285,7 @@ export const scheduleBookingReminder = async (
       secondsUntilTrigger
     );
   } catch (error) {
-    console.error('Error scheduling booking reminder:', error);
+    // console.error('Error scheduling booking reminder:', error);
     return null;
   }
 };
@@ -298,9 +298,9 @@ export const cancelScheduledNotification = async (
 ): Promise<void> => {
   try {
     await Notifications.cancelScheduledNotificationAsync(notificationId);
-    console.log('Notification cancelled:', notificationId);
+    // console.log('Notification cancelled:', notificationId);
   } catch (error) {
-    console.error('Error cancelling notification:', error);
+    // console.error('Error cancelling notification:', error);
   }
 };
 
@@ -310,9 +310,9 @@ export const cancelScheduledNotification = async (
 export const cancelAllNotifications = async (): Promise<void> => {
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();
-    console.log('All notifications cancelled');
+    // console.log('All notifications cancelled');
   } catch (error) {
-    console.error('Error cancelling all notifications:', error);
+    // console.error('Error cancelling all notifications:', error);
   }
 };
 
@@ -322,9 +322,9 @@ export const cancelAllNotifications = async (): Promise<void> => {
 export const clearAllDeliveredNotifications = async (): Promise<void> => {
   try {
     await Notifications.dismissAllNotificationsAsync();
-    console.log('All delivered notifications cleared');
+    // console.log('All delivered notifications cleared');
   } catch (error) {
-    console.error('Error clearing delivered notifications:', error);
+    // console.error('Error clearing delivered notifications:', error);
   }
 };
 
@@ -335,7 +335,7 @@ export const setBadgeCount = async (count: number): Promise<void> => {
   try {
     await Notifications.setBadgeCountAsync(count);
   } catch (error) {
-    console.error('Error setting badge count:', error);
+    // console.error('Error setting badge count:', error);
   }
 };
 
@@ -346,7 +346,7 @@ export const getBadgeCount = async (): Promise<number> => {
   try {
     return await Notifications.getBadgeCountAsync();
   } catch (error) {
-    console.error('Error getting badge count:', error);
+    // console.error('Error getting badge count:', error);
     return 0;
   }
 };
@@ -362,7 +362,7 @@ export const setupNotificationHandlers = (
   // Listen for notifications received while app is in foreground
   const notificationListener = Notifications.addNotificationReceivedListener(
     (notification) => {
-      console.log('Notification received (foreground):', notification);
+      // console.log('Notification received (foreground):', notification);
       onNotificationReceived?.(notification);
     }
   );
@@ -370,7 +370,7 @@ export const setupNotificationHandlers = (
   // Listen for notification interactions (user tapped notification)
   const responseListener = Notifications.addNotificationResponseReceivedListener(
     (response) => {
-      console.log('Notification response:', response);
+      // console.log('Notification response:', response);
       onNotificationResponse?.(response);
     }
   );
@@ -389,7 +389,7 @@ export const getLastNotificationResponse = async (): Promise<Notifications.Notif
   try {
     return await Notifications.getLastNotificationResponseAsync();
   } catch (error) {
-    console.error('Error getting last notification response:', error);
+    // console.error('Error getting last notification response:', error);
     return null;
   }
 };
@@ -421,7 +421,7 @@ export const getNotificationPermissionStatus = async (): Promise<{
       } : undefined,
     };
   } catch (error) {
-    console.error('Error getting permission status:', error);
+    // console.error('Error getting permission status:', error);
     return {
       status: 'undetermined',
       canAskAgain: true,
@@ -436,7 +436,7 @@ export const openAppSettings = async (): Promise<void> => {
   try {
     await Notifications.openSettingsAsync();
   } catch (error) {
-    console.error('Error opening app settings:', error);
+    // console.error('Error opening app settings:', error);
   }
 };
 

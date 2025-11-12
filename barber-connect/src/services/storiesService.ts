@@ -71,7 +71,7 @@ export const createStory = async (
 
     return storyData;
   } catch (error) {
-    console.error('Create story error:', error);
+    // console.error('Create story error:', error);
     throw new Error('Failed to create story');
   }
 };
@@ -92,7 +92,7 @@ export const getUserStories = async (userId: string): Promise<Story[]> => {
     const snapshot = await getDocs(storiesQuery);
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Story));
   } catch (error) {
-    console.error('Get user stories error:', error);
+    // console.error('Get user stories error:', error);
     return [];
   }
 };
@@ -174,7 +174,7 @@ export const getFeedStories = async (
 
     return groups;
   } catch (error) {
-    console.error('Get feed stories error:', error);
+    // console.error('Get feed stories error:', error);
     return [];
   }
 };
@@ -199,7 +199,7 @@ export const viewStory = async (storyId: string, viewerId: string): Promise<void
       });
     }
   } catch (error) {
-    console.error('View story error:', error);
+    // console.error('View story error:', error);
   }
 };
 
@@ -215,7 +215,7 @@ export const getStoryViewers = async (storyId: string): Promise<string[]> => {
     const story = storyDoc.data() as Story;
     return story.views || [];
   } catch (error) {
-    console.error('Get story viewers error:', error);
+    // console.error('Get story viewers error:', error);
     return [];
   }
 };
@@ -243,7 +243,7 @@ export const deleteStory = async (storyId: string, userId: string): Promise<void
     // Delete story document
     await deleteDoc(doc(db, 'stories', storyId));
   } catch (error) {
-    console.error('Delete story error:', error);
+    // console.error('Delete story error:', error);
     throw new Error('Failed to delete story');
   }
 };
@@ -270,7 +270,7 @@ export const cleanupExpiredStories = async (): Promise<number> => {
         const mediaRef = ref(storage, story.mediaUrl);
         await deleteObject(mediaRef);
       } catch (error) {
-        console.error('Error deleting story media:', error);
+        // console.error('Error deleting story media:', error);
       }
 
       // Delete document
@@ -281,7 +281,7 @@ export const cleanupExpiredStories = async (): Promise<number> => {
 
     return snapshot.docs.length;
   } catch (error) {
-    console.error('Cleanup expired stories error:', error);
+    // console.error('Cleanup expired stories error:', error);
     return 0;
   }
 };

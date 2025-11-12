@@ -59,7 +59,7 @@ export const MapViewScreen = ({ navigation }: any) => {
         longitudeDelta: 0.01,
       });
     } catch (err) {
-      console.error('Error loading location:', err);
+      // console.error('Error loading location:', err);
       // Even if there's an error, getLocationOrDefault should return default location
       const location = await getLocationOrDefault();
       setUserLocation(location);
@@ -88,7 +88,7 @@ export const MapViewScreen = ({ navigation }: any) => {
       );
       setBarbers(nearby);
     } catch (err) {
-      console.error('Error loading nearby barbers:', err);
+      // console.error('Error loading nearby barbers:', err);
       setError('Failed to load barbers. Please try again.');
     } finally {
       setIsLoading(false);

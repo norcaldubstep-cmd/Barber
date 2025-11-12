@@ -58,7 +58,7 @@ export const StoriesScreen = ({ route, navigation }: any) => {
       const stories = await getFeedStories(user.id, []);
       setStoryGroups(stories);
     } catch (error) {
-      console.error('Error loading stories:', error);
+      // console.error('Error loading stories:', error);
       Alert.alert('Error', 'Failed to load stories');
       navigation.goBack();
     } finally {
@@ -70,7 +70,7 @@ export const StoriesScreen = ({ route, navigation }: any) => {
   useEffect(() => {
     if (currentStory && user?.id && !loading) {
       viewStory(currentStory.id, user.id).catch((error) => {
-        console.error('Error marking story as viewed:', error);
+        // console.error('Error marking story as viewed:', error);
       });
     }
   }, [currentStory?.id, user?.id, loading]);
@@ -165,7 +165,7 @@ export const StoriesScreen = ({ route, navigation }: any) => {
               setStoryGroups(updatedGroups);
               handleNext();
             } catch (error) {
-              console.error('Error deleting story:', error);
+              // console.error('Error deleting story:', error);
               Alert.alert('Error', 'Failed to delete story');
             }
           },

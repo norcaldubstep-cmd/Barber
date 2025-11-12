@@ -122,7 +122,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route })
 
       // Navigation will happen automatically via RootNavigator
     } catch (error: any) {
-      console.error('Sign up error:', error);
+      // console.error('Sign up error:', error);
       const errorMessage = error.message || 'Failed to create account. Please try again.';
       Alert.alert('Sign Up Failed', errorMessage);
       setErrors({ email: errorMessage });

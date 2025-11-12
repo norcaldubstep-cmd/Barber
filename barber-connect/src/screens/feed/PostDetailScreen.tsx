@@ -39,7 +39,7 @@ export const PostDetailScreen = ({ navigation, route }: any) => {
         setPost(postData);
         setComments(commentsData);
       } catch (error) {
-        console.error('Error fetching post:', error);
+        // console.error('Error fetching post:', error);
         Alert.alert('Error', 'Failed to load post. Please try again.');
       } finally {
         setLoading(false);
@@ -64,7 +64,7 @@ export const PostDetailScreen = ({ navigation, route }: any) => {
     try {
       await toggleLike(postId, !liked);
     } catch (error) {
-      console.error('Error toggling like:', error);
+      // console.error('Error toggling like:', error);
       // Revert on error
       setPost((prev) => prev ? ({
         ...prev,
@@ -85,7 +85,7 @@ export const PostDetailScreen = ({ navigation, route }: any) => {
     try {
       await toggleSave(postId, !newSavedState);
     } catch (error) {
-      console.error('Error toggling save:', error);
+      // console.error('Error toggling save:', error);
       // Revert on error
       setPost((prev) => prev ? ({ ...prev, saved: !newSavedState }) : null);
       Alert.alert('Error', 'Failed to save post. Please try again.');
@@ -101,7 +101,7 @@ export const PostDetailScreen = ({ navigation, route }: any) => {
       // Update comment count
       setPost((prev) => prev ? ({ ...prev, commentsCount: prev.commentsCount + 1 }) : null);
     } catch (error) {
-      console.error('Error adding comment:', error);
+      // console.error('Error adding comment:', error);
       Alert.alert('Error', 'Failed to add comment. Please try again.');
     }
   };
@@ -239,7 +239,7 @@ export const PostDetailScreen = ({ navigation, route }: any) => {
             onAddComment={handleAddComment}
             onLikeComment={(commentId) => {
               // TODO: Like comment API call
-              console.log('Like comment:', commentId);
+              // console.log('Like comment:', commentId);
             }}
           />
         </View>

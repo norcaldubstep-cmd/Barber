@@ -33,7 +33,7 @@ export const FollowersScreen = ({ navigation, route }: any) => {
           : await getFollowing(userId);
         setUsers(data);
       } catch (error) {
-        console.error('Error fetching users:', error);
+        // console.error('Error fetching users:', error);
         Alert.alert('Error', 'Failed to load users. Please try again.');
       } finally {
         setLoading(false);
@@ -63,7 +63,7 @@ export const FollowersScreen = ({ navigation, route }: any) => {
     try {
       await toggleFollow(targetUserId, user.isFollowing || false);
     } catch (error) {
-      console.error('Error toggling follow:', error);
+      // console.error('Error toggling follow:', error);
       // Revert on error
       setUsers((prev) =>
         prev.map((u) =>

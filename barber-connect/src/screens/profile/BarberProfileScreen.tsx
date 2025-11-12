@@ -80,7 +80,7 @@ export const BarberProfileScreen = ({ route, navigation }: any) => {
         setIsFollowing(false);
       }
     } catch (err) {
-      console.error('Error loading barber profile:', err);
+      // console.error('Error loading barber profile:', err);
       setError('Failed to load barber profile');
     } finally {
       setIsLoading(false);
@@ -105,7 +105,7 @@ export const BarberProfileScreen = ({ route, navigation }: any) => {
         });
       }
     } catch (err) {
-      console.error('Error toggling follow:', err);
+      // console.error('Error toggling follow:', err);
       Alert.alert('Error', 'Failed to update follow status');
     }
   };
@@ -124,7 +124,7 @@ export const BarberProfileScreen = ({ route, navigation }: any) => {
       }
       setIsFavorite(!isFavorite);
     } catch (err) {
-      console.error('Error toggling favorite:', err);
+      // console.error('Error toggling favorite:', err);
       Alert.alert('Error', 'Failed to update favorite status');
     }
   };

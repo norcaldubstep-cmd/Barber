@@ -50,7 +50,7 @@ export const FavoritesScreen = ({ navigation }: any) => {
       // Filter out any null results
       setFavorites(barberProfiles.filter((b) => b !== null) as BarberProfile[]);
     } catch (err) {
-      console.error('Error loading favorites:', err);
+      // console.error('Error loading favorites:', err);
       setError('Failed to load favorites. Please try again.');
     } finally {
       setIsLoading(false);
@@ -85,7 +85,7 @@ export const FavoritesScreen = ({ navigation }: any) => {
               // Remove from Firebase
               await removeFavorite(user.id, barberId);
             } catch (err) {
-              console.error('Error removing favorite:', err);
+              // console.error('Error removing favorite:', err);
               // Reload favorites to restore state
               loadFavorites();
               Alert.alert('Error', 'Failed to remove favorite. Please try again.');
@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
     marginVertical: spacing.md,
     borderRadius: borderRadius.xl,
     padding: spacing.lg,
-    ...shadows.medium,
+    ...shadows.md,
   },
   statsContent: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   statsText: { flex: 1 },
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.secondary,
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadows.small,
+    ...shadows.sm,
   },
   barberInfo: { alignItems: 'center', marginBottom: spacing.md },
   barberName: { ...textStyles.h3, fontWeight: '700', marginBottom: spacing.xs },
