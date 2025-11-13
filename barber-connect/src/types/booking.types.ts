@@ -1,9 +1,10 @@
 export enum BookingStatus {
-  PENDING = 'PENDING',
-  CONFIRMED = 'CONFIRMED',
+  PENDING = 'PENDING', // Awaiting barber approval
+  CONFIRMED = 'CONFIRMED', // Barber approved
+  DENIED = 'DENIED', // Barber declined
   IN_PROGRESS = 'IN_PROGRESS',
   COMPLETED = 'COMPLETED',
-  CANCELLED = 'CANCELLED',
+  CANCELLED = 'CANCELLED', // Cancelled by client or barber after confirmation
   NO_SHOW = 'NO_SHOW',
 }
 
@@ -37,6 +38,7 @@ export interface Booking {
 
   status: BookingStatus;
   notes?: string;
+  denialReason?: string; // Reason for denial (if status is DENIED)
 
   location?: {
     address: string;

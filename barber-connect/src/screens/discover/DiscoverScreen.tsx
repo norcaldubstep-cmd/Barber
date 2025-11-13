@@ -10,6 +10,7 @@ import {
   FlatList,
   RefreshControl,
   Alert,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -144,6 +145,30 @@ export const DiscoverScreen = ({ navigation }: any) => {
     setRefreshing(false);
   };
 
+  const handleBooking = async (barber: BarberProfile) => {
+    if (isGuest) {
+      showGuestPrompt(getFeatureDisplayName('booking'));
+      return;
+    }
+
+    // Check if barber has external booking URL
+    if (barber.socialLinks?.bookingUrl) {
+      try {
+        const canOpen = await Linking.canOpenURL(barber.socialLinks.bookingUrl);
+        if (canOpen) {
+          await Linking.openURL(barber.socialLinks.bookingUrl);
+        } else {
+          Alert.alert('Error', 'Unable to open booking link');
+        }
+      } catch (error) {
+        Alert.alert('Error', 'Failed to open booking link');
+      }
+    } else {
+      // Use platform booking
+      navigation.navigate('Booking', { barberId: barber.id });
+    }
+  };
+
   const applyFilters = () => {
     // Since Firebase already handles most filtering, we just need to set the filtered barbers
     // The distance and sorting are already handled by the searchBarbers function
@@ -269,13 +294,7 @@ export const DiscoverScreen = ({ navigation }: any) => {
               )}
               <Button
                 title="Book"
-                onPress={() => {
-                  if (isGuest) {
-                    showGuestPrompt(getFeatureDisplayName('booking'));
-                    return;
-                  }
-                  navigation.navigate('Booking', { barberId: item.id });
-                }}
+                onPress={() => handleBooking(item)}
                 variant="gradient"
                 size="small"
                 style={styles.bookButton}

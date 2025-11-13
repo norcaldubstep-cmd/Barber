@@ -255,6 +255,73 @@ export const cancelBooking = async (bookingId: string): Promise<void> => {
   }
 };
 
+// Approve booking (barber only)
+export const approveBooking = async (bookingId: string): Promise<void> => {
+  try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('Unauthorized: User must be authenticated');
+    }
+
+    // Get booking to verify barber ownership
+    const booking = await getBookingById(bookingId);
+    if (!booking) {
+      throw new Error('Booking not found');
+    }
+
+    // Only barber can approve
+    if (currentUser.uid !== booking.barberId) {
+      throw new Error('Unauthorized: Only the barber can approve this booking');
+    }
+
+    // Can only approve pending bookings
+    if (booking.status !== BookingStatus.PENDING) {
+      throw new Error('Can only approve pending bookings');
+    }
+
+    await updateBookingStatus(bookingId, BookingStatus.CONFIRMED);
+  } catch (error) {
+    // console.error('Approve booking error:', error);
+    throw error;
+  }
+};
+
+// Deny booking (barber only)
+export const denyBooking = async (bookingId: string, reason?: string): Promise<void> => {
+  try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('Unauthorized: User must be authenticated');
+    }
+
+    // Get booking to verify barber ownership
+    const booking = await getBookingById(bookingId);
+    if (!booking) {
+      throw new Error('Booking not found');
+    }
+
+    // Only barber can deny
+    if (currentUser.uid !== booking.barberId) {
+      throw new Error('Unauthorized: Only the barber can deny this booking');
+    }
+
+    // Can only deny pending bookings
+    if (booking.status !== BookingStatus.PENDING) {
+      throw new Error('Can only deny pending bookings');
+    }
+
+    // Update status to denied and optionally store reason
+    await updateDoc(doc(db, 'bookings', bookingId), {
+      status: BookingStatus.DENIED,
+      denialReason: reason,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    // console.error('Deny booking error:', error);
+    throw error;
+  }
+};
+
 // Delete booking (admin only)
 export const deleteBooking = async (bookingId: string): Promise<void> => {
   try {

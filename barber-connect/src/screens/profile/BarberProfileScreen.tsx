@@ -10,6 +10,7 @@ import {
   Dimensions,
   ActivityIndicator,
   Alert,
+  Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -152,12 +153,28 @@ export const BarberProfileScreen = ({ route, navigation }: any) => {
     }
   };
 
-  const handleBooking = () => {
+  const handleBooking = async () => {
     if (isGuest) {
       showGuestPrompt(getFeatureDisplayName('booking'));
       return;
     }
-    navigation.navigate('Booking', { barberId: barber!.id });
+
+    // Check if barber has external booking URL
+    if (barber?.socialLinks?.bookingUrl) {
+      try {
+        const canOpen = await Linking.canOpenURL(barber.socialLinks.bookingUrl);
+        if (canOpen) {
+          await Linking.openURL(barber.socialLinks.bookingUrl);
+        } else {
+          Alert.alert('Error', 'Unable to open booking link');
+        }
+      } catch (error) {
+        Alert.alert('Error', 'Failed to open booking link');
+      }
+    } else {
+      // Use platform booking
+      navigation.navigate('Booking', { barberId: barber!.id });
+    }
   };
 
   const handleMessage = () => {

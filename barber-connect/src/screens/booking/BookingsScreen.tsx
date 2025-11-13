@@ -18,7 +18,13 @@ import { Card } from '../../components/common/Card';
 import { colors, spacing, borderRadius, textStyles, shadows } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
 import { UserRole } from '../../types/user.types';
-import { getClientBookings, cancelBooking } from '../../services/bookingService';
+import {
+  getClientBookings,
+  getBarberBookings,
+  cancelBooking,
+  approveBooking,
+  denyBooking,
+} from '../../services/bookingService';
 import { Booking, BookingStatus } from '../../types/booking.types';
 
 export const BookingsScreen = ({ navigation }: any) => {
@@ -40,7 +46,9 @@ export const BookingsScreen = ({ navigation }: any) => {
 
     try {
       setLoading(true);
-      const allBookings = await getClientBookings(user.id);
+      const allBookings = isBarber
+        ? await getBarberBookings(user.id)
+        : await getClientBookings(user.id);
       setBookings(allBookings);
     } catch (error) {
       // console.error('Error fetching bookings:', error);
@@ -57,26 +65,70 @@ export const BookingsScreen = ({ navigation }: any) => {
   };
 
   const handleCancelBooking = (booking: Booking) => {
-    Alert.alert(
-      'Cancel Booking',
-      `Are you sure you want to cancel your appointment with ${booking.barberName}?`,
+    const message = isBarber
+      ? `Are you sure you want to cancel the appointment with ${booking.clientName}?`
+      : `Are you sure you want to cancel your appointment with ${booking.barberName}?`;
+
+    Alert.alert('Cancel Booking', message, [
+      { text: 'No', style: 'cancel' },
+      {
+        text: 'Yes, Cancel',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await cancelBooking(booking.id);
+            Alert.alert('Success', 'Booking has been cancelled');
+            fetchBookings();
+          } catch (error) {
+            // console.error('Error cancelling booking:', error);
+            Alert.alert('Error', 'Failed to cancel booking. Please try again.');
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleApproveBooking = async (booking: Booking) => {
+    Alert.alert('Approve Booking', `Confirm appointment with ${booking.clientName}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Approve',
+        onPress: async () => {
+          try {
+            await approveBooking(booking.id);
+            Alert.alert('Success', 'Booking has been approved');
+            fetchBookings();
+          } catch (error) {
+            // console.error('Error approving booking:', error);
+            Alert.alert('Error', 'Failed to approve booking. Please try again.');
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleDenyBooking = (booking: Booking) => {
+    Alert.prompt(
+      'Deny Booking',
+      `Why are you denying the appointment with ${booking.clientName}? (optional)`,
       [
-        { text: 'No', style: 'cancel' },
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Yes, Cancel',
+          text: 'Deny',
           style: 'destructive',
-          onPress: async () => {
+          onPress: async (reason?: string) => {
             try {
-              await cancelBooking(booking.id);
-              Alert.alert('Success', 'Your booking has been cancelled');
+              await denyBooking(booking.id, reason);
+              Alert.alert('Success', 'Booking has been denied');
               fetchBookings();
             } catch (error) {
-              // console.error('Error cancelling booking:', error);
-              Alert.alert('Error', 'Failed to cancel booking. Please try again.');
+              // console.error('Error denying booking:', error);
+              Alert.alert('Error', 'Failed to deny booking. Please try again.');
             }
           },
         },
-      ]
+      ],
+      'plain-text'
     );
   };
 
@@ -84,7 +136,10 @@ export const BookingsScreen = ({ navigation }: any) => {
     (b) => b.status === BookingStatus.PENDING || b.status === BookingStatus.CONFIRMED
   );
   const pastBookings = bookings.filter(
-    (b) => b.status === BookingStatus.COMPLETED || b.status === BookingStatus.CANCELLED
+    (b) =>
+      b.status === BookingStatus.COMPLETED ||
+      b.status === BookingStatus.CANCELLED ||
+      b.status === BookingStatus.DENIED
   );
   const displayBookings = selectedTab === 'upcoming' ? upcomingBookings : pastBookings;
 
@@ -121,20 +176,25 @@ export const BookingsScreen = ({ navigation }: any) => {
   const renderBooking = ({ item }: { item: Booking }) => {
     const daysUntil = getDaysUntil(item.date);
     const isUpcoming = item.status === BookingStatus.PENDING || item.status === BookingStatus.CONFIRMED;
+    const isPending = item.status === BookingStatus.PENDING;
     const primaryService = item.services[0];
+
+    // Show different info based on user role
+    const displayName = isBarber ? item.clientName : item.barberName;
+    const displayAvatar = isBarber ? item.clientAvatar : item.barberAvatar;
 
     return (
       <Card style={styles.bookingCard}>
         <View style={styles.bookingHeader}>
           <Avatar
-            name={item.barberName}
+            name={displayName}
             size="lg"
-            verified={true}
-            showGradientBorder={true}
-            imageUrl={item.barberAvatar}
+            verified={!isBarber}
+            showGradientBorder={!isBarber}
+            imageUrl={displayAvatar}
           />
           <View style={styles.bookingHeaderText}>
-            <Text style={styles.barberName}>{item.barberName}</Text>
+            <Text style={styles.barberName}>{displayName}</Text>
             <View style={styles.serviceRow}>
               <Text style={styles.serviceName}>{primaryService.name}</Text>
               <Text style={styles.serviceMeta}>
@@ -142,6 +202,19 @@ export const BookingsScreen = ({ navigation }: any) => {
               </Text>
             </View>
           </View>
+          {/* Status Badge */}
+          {item.status === BookingStatus.PENDING && (
+            <View style={[styles.statusBadge, styles.statusPending]}>
+              <Ionicons name="time-outline" size={14} color={colors.accent.gold} />
+              <Text style={styles.statusText}>Pending</Text>
+            </View>
+          )}
+          {item.status === BookingStatus.DENIED && (
+            <View style={[styles.statusBadge, styles.statusDenied]}>
+              <Ionicons name="close-circle" size={14} color={colors.error} />
+              <Text style={[styles.statusText, { color: colors.error }]}>Denied</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.divider} />
@@ -178,9 +251,78 @@ export const BookingsScreen = ({ navigation }: any) => {
               <Text style={styles.notesText}>{item.notes}</Text>
             </View>
           )}
+
+          {item.denialReason && item.status === BookingStatus.DENIED && (
+            <View style={[styles.notesContainer, { backgroundColor: colors.error + '10' }]}>
+              <Ionicons name="information-circle-outline" size={16} color={colors.error} />
+              <Text style={[styles.notesText, { color: colors.error }]}>
+                Denial reason: {item.denialReason}
+              </Text>
+            </View>
+          )}
         </View>
 
-        {isUpcoming && (
+        {isUpcoming && isBarber && isPending && (
+          <View style={styles.bookingActions}>
+            <Button
+              title="Approve"
+              onPress={() => handleApproveBooking(item)}
+              variant="gradient"
+              size="small"
+              style={styles.approveButton}
+              icon="checkmark-circle-outline"
+            />
+            <Button
+              title="Deny"
+              onPress={() => handleDenyBooking(item)}
+              variant="danger"
+              size="small"
+              style={styles.denyButton}
+              icon="close-circle-outline"
+            />
+            <Button
+              title="Message"
+              onPress={() =>
+                navigation.navigate('Chat', {
+                  participantId: item.clientId,
+                  participantName: item.clientName,
+                })
+              }
+              variant="outline"
+              size="small"
+              style={styles.messageButtonSmall}
+              icon="chatbubble-outline"
+            />
+          </View>
+        )}
+
+        {isUpcoming && isBarber && !isPending && (
+          <View style={styles.bookingActions}>
+            <Button
+              title="Message"
+              onPress={() =>
+                navigation.navigate('Chat', {
+                  participantId: item.clientId,
+                  participantName: item.clientName,
+                })
+              }
+              variant="outline"
+              size="small"
+              style={styles.actionButton}
+              icon="chatbubble-outline"
+            />
+            <Button
+              title="Cancel"
+              onPress={() => handleCancelBooking(item)}
+              variant="danger"
+              size="small"
+              style={styles.cancelButton}
+              icon="close-circle-outline"
+            />
+          </View>
+        )}
+
+        {isUpcoming && !isBarber && (
           <View style={styles.bookingActions}>
             <Button
               title="Reschedule"
@@ -192,7 +334,12 @@ export const BookingsScreen = ({ navigation }: any) => {
             />
             <Button
               title="Message"
-              onPress={() => navigation.navigate('Chat', { participantId: item.barberId, participantName: item.barberName })}
+              onPress={() =>
+                navigation.navigate('Chat', {
+                  participantId: item.barberId,
+                  participantName: item.barberName,
+                })
+              }
               variant="outline"
               size="small"
               style={styles.actionButton}
@@ -411,6 +558,31 @@ const styles = StyleSheet.create({
   actionButton: { flex: 1 },
   cancelButton: { flex: 1 },
   bookAgainButton: { flex: 1 },
+  approveButton: { flex: 1 },
+  denyButton: { flex: 1 },
+  messageButtonSmall: { flex: 0.8 },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    position: 'absolute',
+    top: 0,
+    right: 0,
+  },
+  statusPending: {
+    backgroundColor: colors.accent.gold + '20',
+  },
+  statusDenied: {
+    backgroundColor: colors.error + '20',
+  },
+  statusText: {
+    ...textStyles.caption,
+    fontWeight: '600',
+    color: colors.accent.gold,
+  },
   emptyState: {
     flex: 1,
     alignItems: 'center',
