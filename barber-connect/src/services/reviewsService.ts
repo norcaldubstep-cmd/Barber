@@ -43,6 +43,23 @@ export const createReview = async (
   }
 ): Promise<Review> => {
   try {
+    // Input validation
+    if (!barberId || !clientId || !clientName) {
+      throw new Error('Invalid review parameters');
+    }
+    if (rating < 1 || rating > 5) {
+      throw new Error('Rating must be between 1 and 5');
+    }
+    if (!comment || comment.trim().length === 0) {
+      throw new Error('Review comment is required');
+    }
+    if (comment.length > 1000) {
+      throw new Error('Review comment cannot exceed 1000 characters');
+    }
+    if (data?.images && data.images.length > 5) {
+      throw new Error('Cannot upload more than 5 images per review');
+    }
+
     const reviewRef = doc(collection(db, 'reviews'));
 
     // Upload images if provided
@@ -60,7 +77,7 @@ export const createReview = async (
       clientAvatar: data?.clientAvatar,
       bookingId: data?.bookingId,
       rating,
-      comment,
+      comment: comment.trim(),
       images: uploadedImages,
       skillRating: data?.skillRating,
       speedRating: data?.speedRating,
@@ -86,7 +103,7 @@ export const createReview = async (
     return reviewData;
   } catch (error) {
     // console.error('Create review error:', error);
-    throw new Error('Failed to create review');
+    throw error;
   }
 };
 

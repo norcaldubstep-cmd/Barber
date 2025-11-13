@@ -130,7 +130,7 @@ export const toggleFollow = async (targetUserId: string, currentlyFollowing: boo
 };
 
 // Get followers for a user
-export const getFollowers = async (userId: string): Promise<User[]> => {
+export const getFollowers = async (userId: string, limitCount: number = 50): Promise<User[]> => {
   try {
     const currentUserId = auth.currentUser?.uid;
     if (!currentUserId) throw new Error('Not authenticated');
@@ -139,7 +139,8 @@ export const getFollowers = async (userId: string): Promise<User[]> => {
     const followsQuery = query(
       collection(db, 'follows'),
       where('followingId', '==', userId),
-      orderBy('createdAt', 'desc')
+      orderBy('createdAt', 'desc'),
+      limit(limitCount)
     );
 
     const followsSnapshot = await getDocs(followsQuery);
@@ -181,7 +182,7 @@ export const getFollowers = async (userId: string): Promise<User[]> => {
 };
 
 // Get following for a user
-export const getFollowing = async (userId: string): Promise<User[]> => {
+export const getFollowing = async (userId: string, limitCount: number = 50): Promise<User[]> => {
   try {
     const currentUserId = auth.currentUser?.uid;
     if (!currentUserId) throw new Error('Not authenticated');
@@ -190,7 +191,8 @@ export const getFollowing = async (userId: string): Promise<User[]> => {
     const followsQuery = query(
       collection(db, 'follows'),
       where('followerId', '==', userId),
-      orderBy('createdAt', 'desc')
+      orderBy('createdAt', 'desc'),
+      limit(limitCount)
     );
 
     const followsSnapshot = await getDocs(followsQuery);

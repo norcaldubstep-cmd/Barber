@@ -275,13 +275,12 @@ const getAuthErrorMessage = (errorCode: string): string => {
     case 'auth/operation-not-allowed':
       return 'Operation not allowed';
     case 'auth/weak-password':
-      return 'Password should be at least 6 characters';
+      return 'Password should be at least 8 characters';
     case 'auth/user-disabled':
-      return 'This account has been disabled';
+      return 'Your account has been disabled. Please contact support';
+    // Generic messages to prevent email enumeration
     case 'auth/user-not-found':
-      return 'No account found with this email';
     case 'auth/wrong-password':
-      return 'Incorrect password';
     case 'auth/invalid-credential':
       return 'Invalid email or password';
     case 'auth/too-many-requests':

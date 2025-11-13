@@ -152,16 +152,29 @@ export const uploadImage = async (
   path: string
 ): Promise<string> => {
   try {
+    // Fetch the image as blob
+    const response = await fetch(uri);
+    const blob = await response.blob();
+
+    // Validate file type
+    const validImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic'];
+    if (!validImageTypes.includes(blob.type)) {
+      throw new Error(`Invalid file type: ${blob.type}. Only JPEG, PNG, WebP, and HEIC images are allowed.`);
+    }
+
+    // Validate file size (10MB max)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (blob.size > maxSize) {
+      throw new Error('File size exceeds 10MB limit');
+    }
+
     // Generate unique filename with timestamp
-    const filename = `${Date.now()}.jpg`;
+    const extension = blob.type.split('/')[1] || 'jpg';
+    const filename = `${Date.now()}.${extension}`;
     const fullPath = `${path}/${filename}`;
 
     // Create storage reference
     const storageRef = ref(storage, fullPath);
-
-    // Fetch the image as blob
-    const response = await fetch(uri);
-    const blob = await response.blob();
 
     // Upload the blob
     await uploadBytes(storageRef, blob);
@@ -170,9 +183,9 @@ export const uploadImage = async (
     const downloadURL = await getDownloadURL(storageRef);
 
     return downloadURL;
-  } catch (error) {
+  } catch (error: any) {
     // console.error('Error uploading image:', error);
-    throw new Error('Failed to upload image');
+    throw error;
   }
 };
 

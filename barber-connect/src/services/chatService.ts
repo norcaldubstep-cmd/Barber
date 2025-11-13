@@ -88,6 +88,17 @@ export const sendMessage = async (
   senderAvatar?: string
 ): Promise<Message> => {
   try {
+    // Input validation
+    if (!content || content.trim().length === 0) {
+      throw new Error('Message content cannot be empty');
+    }
+    if (content.length > 1000) {
+      throw new Error('Message content cannot exceed 1000 characters');
+    }
+    if (!conversationId || !senderId || !receiverId) {
+      throw new Error('Invalid message parameters');
+    }
+
     const messageRef = doc(collection(db, 'messages'));
 
     const messageData: Message = {
@@ -98,7 +109,7 @@ export const sendMessage = async (
       senderAvatar,
       receiverId,
       type: MessageType.TEXT,
-      content,
+      content: content.trim(),
       isRead: false,
       createdAt: new Date().toISOString(),
     };
@@ -114,7 +125,7 @@ export const sendMessage = async (
     return messageData;
   } catch (error) {
     // console.error('Send message error:', error);
-    throw new Error('Failed to send message');
+    throw error;
   }
 };
 
