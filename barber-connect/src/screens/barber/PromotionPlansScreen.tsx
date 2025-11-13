@@ -15,15 +15,19 @@ import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { colors, spacing, borderRadius, textStyles, shadows } from '../../theme';
 import { PROMOTION_PLANS, PromotionTier } from '../../types/promotion.types';
+import { BillingCycle } from '../../types/payment.types';
 import { useAuthStore } from '../../store/authStore';
 import { getBarberProfile } from '../../services/barberService';
+import { createSubscription, recordPayment } from '../../services/paymentService';
 
 export const PromotionPlansScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
   const [currentTier, setCurrentTier] = useState<PromotionTier>(PromotionTier.FREE);
   const [selectedTier, setSelectedTier] = useState<PromotionTier>(PromotionTier.SILVER);
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
   const [loading, setLoading] = useState(true);
+  const [subscribing, setSubscribing] = useState(false);
+  const [barberId, setBarberId] = useState<string>('');
 
   useEffect(() => {
     loadCurrentTier();
@@ -38,9 +42,12 @@ export const PromotionPlansScreen = ({ navigation }: any) => {
     try {
       setLoading(true);
       const profile = await getBarberProfile(user.id);
-      if (profile && profile.promotionTier) {
-        setCurrentTier(profile.promotionTier);
-        setSelectedTier(profile.promotionTier);
+      if (profile) {
+        setBarberId(profile.id);
+        if (profile.promotionTier) {
+          setCurrentTier(profile.promotionTier);
+          setSelectedTier(profile.promotionTier);
+        }
       }
     } catch (err) {
       // console.error('Load tier error:', err);
@@ -67,21 +74,78 @@ export const PromotionPlansScreen = ({ navigation }: any) => {
   };
 
   const handleSubscribe = async () => {
-    if (!selectedPlan) return;
+    if (!selectedPlan || !barberId) return;
 
     if (selectedPlan.tier === currentTier) {
       Alert.alert('Current Plan', `You are already on the ${selectedPlan.name} plan`);
       return;
     }
 
+    // Skip payment for free tier
+    if (selectedPlan.tier === PromotionTier.FREE) {
+      Alert.alert('Error', 'Cannot subscribe to free plan');
+      return;
+    }
+
     const price = getMonthlyPrice(selectedPlan.tier);
     const total = billingCycle === 'monthly' ? price : price * 12;
+    const isUpgrade =
+      PROMOTION_PLANS.findIndex((p) => p.tier === selectedPlan.tier) >
+      PROMOTION_PLANS.findIndex((p) => p.tier === currentTier);
 
     Alert.alert(
-      'Upgrade Plan',
-      `This would upgrade you to ${selectedPlan.name} plan for $${total}/${billingCycle === 'monthly' ? 'month' : 'year'}. Payment processing is not yet implemented.`,
+      isUpgrade ? 'Upgrade Plan' : 'Change Plan',
+      `${isUpgrade ? 'Upgrade' : 'Switch'} to ${selectedPlan.name} plan for $${total.toFixed(2)}/${billingCycle === 'monthly' ? 'month' : 'year'}?\n\n` +
+        `Note: This is a demo. In production, you would be taken to a secure payment page.`,
       [
-        { text: 'OK', style: 'default' },
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Continue',
+          onPress: async () => {
+            try {
+              setSubscribing(true);
+
+              // In production, this would:
+              // 1. Open Stripe Checkout or Payment Sheet
+              // 2. Process payment
+              // 3. Create subscription via Cloud Function
+              // 4. Webhook updates Firestore
+
+              // For demo, we'll simulate a successful subscription
+              await createSubscription(barberId, selectedPlan.tier, billingCycle);
+
+              // Record payment in history
+              await recordPayment(
+                Math.round(total * 100), // Convert to cents
+                selectedPlan.tier,
+                billingCycle,
+                'succeeded'
+              );
+
+              Alert.alert(
+                'Success!',
+                `Your subscription to ${selectedPlan.name} plan is now active!`,
+                [
+                  {
+                    text: 'OK',
+                    onPress: () => {
+                      setCurrentTier(selectedPlan.tier);
+                      navigation.goBack();
+                    },
+                  },
+                ]
+              );
+            } catch (error) {
+              console.error('Subscription error:', error);
+              Alert.alert(
+                'Error',
+                error instanceof Error ? error.message : 'Failed to create subscription'
+              );
+            } finally {
+              setSubscribing(false);
+            }
+          },
+        },
       ]
     );
   };

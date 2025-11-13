@@ -18,6 +18,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
 import { db, storage, auth } from './firebase';
 import { BarberProfile, BarberSearchFilters } from '../types/barber.types';
 import { Service } from '../types/booking.types';
+import { validatePortfolioUpload, validateServiceCreation } from './featureEnforcementService';
 
 /**
  * Barber Service
@@ -154,6 +155,13 @@ export const uploadPortfolioImage = async (
       throw new Error('Unauthorized: You can only upload to your own portfolio');
     }
 
+    // Get current portfolio images
+    const barberDoc = await getDoc(doc(db, 'barbers', barberId));
+    const currentImages = barberDoc.data()?.portfolioImages || [];
+
+    // Check tier limits before upload
+    await validatePortfolioUpload(barberId, currentImages);
+
     const response = await fetch(imageUri);
     const blob = await response.blob();
     const filename = `barbers/${barberId}/portfolio/${Date.now()}.jpg`;
@@ -161,10 +169,6 @@ export const uploadPortfolioImage = async (
 
     await uploadBytes(storageRef, blob);
     const downloadURL = await getDownloadURL(storageRef);
-
-    // Add to portfolio images array
-    const barberDoc = await getDoc(doc(db, 'barbers', barberId));
-    const currentImages = barberDoc.data()?.portfolioImages || [];
 
     await updateDoc(doc(db, 'barbers', barberId), {
       portfolioImages: [...currentImages, downloadURL],
@@ -459,6 +463,9 @@ export const addBarberService = async (
       throw new Error('Barber profile not found');
     }
 
+    // Check tier limits before adding service
+    await validateServiceCreation(barberId, barberProfile.services.length);
+
     const newService: Service = {
       ...service,
       id: `service_${Date.now()}`,
@@ -468,7 +475,7 @@ export const addBarberService = async (
     await updateBarberServices(barberId, updatedServices);
   } catch (error) {
     // console.error('Add barber service error:', error);
-    throw new Error('Failed to add service');
+    throw error;
   }
 };
 
