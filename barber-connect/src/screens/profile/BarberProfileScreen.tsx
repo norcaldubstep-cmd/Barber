@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '../../components/common/Avatar';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
+import { SocialLinks } from '../../components/common/SocialLinks';
 import { colors, spacing, borderRadius, textStyles, shadows } from '../../theme';
 import { BarberProfile } from '../../types/barber.types';
 import { useAuthStore } from '../../store/authStore';
@@ -24,6 +25,9 @@ import { getBarberReviews } from '../../services/reviewsService';
 import { getUserFavorites, addFavorite, removeFavorite } from '../../services/usersService';
 import { toggleFollow } from '../../services/usersService';
 import { Review } from '../../types/review.types';
+import { countSocialLinks } from '../../utils/socialLinks.utils';
+import { useGuestCheck, getFeatureDisplayName } from '../../hooks/useGuestCheck';
+import { GuestPrompt } from '../../components/common/GuestPrompt';
 
 const { width } = Dimensions.get('window');
 const PORTFOLIO_ITEM_SIZE = (width - spacing.lg * 3) / 3;
@@ -32,6 +36,15 @@ export const BarberProfileScreen = ({ route, navigation }: any) => {
   const { barberId } = route.params;
   const { user } = useAuthStore();
   const isCurrentUser = user?.id === barberId;
+  const {
+    isGuest,
+    showGuestPrompt,
+    promptVisible,
+    promptFeature,
+    handleSignUp,
+    handleSignIn,
+    handleClose,
+  } = useGuestCheck(navigation);
 
   const [barber, setBarber] = useState<BarberProfile | null>(null);
   const [portfolioImages, setPortfolioImages] = useState<string[]>([]);
@@ -88,6 +101,11 @@ export const BarberProfileScreen = ({ route, navigation }: any) => {
   };
 
   const handleFollowToggle = async () => {
+    if (isGuest) {
+      showGuestPrompt(getFeatureDisplayName('following'));
+      return;
+    }
+
     if (!user) {
       Alert.alert('Not logged in', 'Please log in to follow barbers');
       return;
@@ -111,6 +129,11 @@ export const BarberProfileScreen = ({ route, navigation }: any) => {
   };
 
   const handleFavoriteToggle = async () => {
+    if (isGuest) {
+      showGuestPrompt(getFeatureDisplayName('saving'));
+      return;
+    }
+
     if (!user) {
       Alert.alert('Not logged in', 'Please log in to favorite barbers');
       return;
@@ -127,6 +150,26 @@ export const BarberProfileScreen = ({ route, navigation }: any) => {
       // console.error('Error toggling favorite:', err);
       Alert.alert('Error', 'Failed to update favorite status');
     }
+  };
+
+  const handleBooking = () => {
+    if (isGuest) {
+      showGuestPrompt(getFeatureDisplayName('booking'));
+      return;
+    }
+    navigation.navigate('Booking', { barberId: barber!.id });
+  };
+
+  const handleMessage = () => {
+    if (isGuest) {
+      showGuestPrompt(getFeatureDisplayName('messaging'));
+      return;
+    }
+    navigation.navigate('Chat', {
+      participantId: barber!.id,
+      participantName: barber!.displayName,
+      participantAvatar: barber!.profileImage,
+    });
   };
 
   if (isLoading) {
@@ -263,6 +306,13 @@ export const BarberProfileScreen = ({ route, navigation }: any) => {
             ))}
           </View>
 
+          {/* Social Links */}
+          {barber.socialLinks && countSocialLinks(barber.socialLinks) > 0 && (
+            <View style={styles.socialLinksContainer}>
+              <SocialLinks socialLinks={barber.socialLinks} variant="default" />
+            </View>
+          )}
+
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
             {isCurrentUser ? (
@@ -278,7 +328,7 @@ export const BarberProfileScreen = ({ route, navigation }: any) => {
               <>
                 <Button
                   title="Book Now"
-                  onPress={() => navigation.navigate('Booking', { barberId: barber.id })}
+                  onPress={handleBooking}
                   variant="gradient"
                   size="large"
                   icon="calendar"
@@ -292,14 +342,7 @@ export const BarberProfileScreen = ({ route, navigation }: any) => {
                   icon={isFollowing ? 'checkmark' : 'person-add'}
                   style={styles.followButton}
                 />
-                <TouchableOpacity
-                  style={styles.messageButton}
-                  onPress={() => navigation.navigate('Chat', {
-                    participantId: barber.id,
-                    participantName: barber.displayName,
-                    participantAvatar: barber.profileImage
-                  })}
-                >
+                <TouchableOpacity style={styles.messageButton} onPress={handleMessage}>
                   <Ionicons name="chatbubble" size={24} color={colors.text.primary} />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.favoriteButton} onPress={handleFavoriteToggle}>
@@ -313,6 +356,16 @@ export const BarberProfileScreen = ({ route, navigation }: any) => {
             )}
           </View>
         </View>
+
+        {/* Guest Prompt Modal */}
+        <GuestPrompt
+          visible={promptVisible}
+          onClose={handleClose}
+          onSignUp={handleSignUp}
+          onSignIn={handleSignIn}
+          feature={promptFeature}
+        />
+
 
         {/* Tabs */}
         <View style={styles.tabs}>
@@ -534,6 +587,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent.gold + '20',
   },
   specialtyText: { ...textStyles.bodySmall, color: colors.accent.gold, fontWeight: '600' },
+  socialLinksContainer: { marginBottom: spacing.lg },
   actionButtons: { flexDirection: 'row', gap: spacing.sm },
   bookButton: { flex: 1 },
   followButton: { flex: 1 },

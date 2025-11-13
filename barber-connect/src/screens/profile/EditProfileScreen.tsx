@@ -27,6 +27,8 @@ import {
   getProfileImagePath,
   getCoverPhotoPath,
 } from '../../services/imageUploadService';
+import { EditSocialLinks } from '../../components/profile/EditSocialLinks';
+import { SocialLinks } from '../../types/barber.types';
 
 export const EditProfileScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
@@ -47,6 +49,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
   const [avatar, setAvatar] = useState<string | null>(null);
   const [coverPhoto, setCoverPhoto] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState<'profile' | 'cover' | null>(null);
+  const [socialLinks, setSocialLinks] = useState<SocialLinks>({});
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -73,6 +76,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
           setYearsExperience(barberProfile.yearsOfExperience?.toString() || '');
           setSelectedSpecialties(barberProfile.specialties || []);
           setAvatar(barberProfile.profileImage || null);
+          setSocialLinks(barberProfile.socialLinks || {});
         }
       }
 
@@ -205,6 +209,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
           yearsOfExperience: yearsExperience ? parseInt(yearsExperience) : 0,
           specialties: selectedSpecialties,
           profileImage: profileImageUrl || undefined,
+          socialLinks,
           // Note: coverPhoto field may need to be added to barber profile type
         });
       }
@@ -414,6 +419,12 @@ export const EditProfileScreen = ({ navigation }: any) => {
                 </View>
               </Card>
             </View>
+
+            {/* Social Links */}
+            <EditSocialLinks
+              socialLinks={socialLinks}
+              onChange={setSocialLinks}
+            />
           </>
         )}
 

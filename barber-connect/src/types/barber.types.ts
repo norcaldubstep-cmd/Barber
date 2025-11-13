@@ -5,6 +5,24 @@ import { Location } from './location.types';
 // Re-export Service for convenience
 export type { Service };
 
+export interface SocialLink {
+  title: string;
+  url: string;
+  icon?: string;
+}
+
+export interface SocialLinks {
+  instagram?: string;
+  tiktok?: string;
+  facebook?: string;
+  youtube?: string;
+  twitter?: string;
+  linkedin?: string;
+  website?: string;
+  bookingUrl?: string;
+  customLinks?: SocialLink[];
+}
+
 export interface BarberProfile {
   id: string;
   userId: string;
@@ -58,6 +76,9 @@ export interface BarberProfile {
   // Engagement
   responseTime: string; // e.g., "Within 1 hour"
   responseRate: number; // percentage
+
+  // Social & Professional Links
+  socialLinks?: SocialLinks;
 
   // Distance (calculated on client)
   distance?: number;
