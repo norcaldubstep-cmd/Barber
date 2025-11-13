@@ -17,6 +17,7 @@ import { Avatar } from '../../components/common/Avatar';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { LocationSearchModal } from '../../components/common/LocationSearchModal';
+import { GuestPrompt } from '../../components/common/GuestPrompt';
 import { colors, spacing, borderRadius, textStyles, shadows } from '../../theme';
 import { BarberProfile, BarberSearchFilters, SPECIALTIES } from '../../types/barber.types';
 import { DISTANCE_OPTIONS } from '../../types/location.types';
@@ -25,9 +26,20 @@ import { calculateDistance, formatDistance } from '../../utils/location.utils';
 import { searchBarbers, getNearbyBarbers, getTopRatedBarbers } from '../../services/barberService';
 import { useAuthStore } from '../../store/authStore';
 import { getLocationOrDefault, getLocationStatusMessage, checkLocationPermission, LocationCoords, reverseGeocodeLocation } from '../../services/locationService';
+import { useGuestCheck, getFeatureDisplayName } from '../../hooks/useGuestCheck';
 
 export const DiscoverScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
+  const {
+    isGuest,
+    showGuestPrompt,
+    promptVisible,
+    promptFeature,
+    handleSignUp,
+    handleSignIn,
+    handleClose,
+  } = useGuestCheck(navigation);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [barbers, setBarbers] = useState<BarberProfile[]>([]);
   const [filteredBarbers, setFilteredBarbers] = useState<BarberProfile[]>([]);
@@ -257,7 +269,13 @@ export const DiscoverScreen = ({ navigation }: any) => {
               )}
               <Button
                 title="Book"
-                onPress={() => navigation.navigate('Booking', { barberId: item.id })}
+                onPress={() => {
+                  if (isGuest) {
+                    showGuestPrompt(getFeatureDisplayName('booking'));
+                    return;
+                  }
+                  navigation.navigate('Booking', { barberId: item.id });
+                }}
                 variant="gradient"
                 size="small"
                 style={styles.bookButton}
@@ -446,6 +464,15 @@ export const DiscoverScreen = ({ navigation }: any) => {
         onClose={() => setShowLocationSearch(false)}
         onSelectLocation={handleSelectLocation}
         currentLocation={userLocation}
+      />
+
+      {/* Guest Prompt Modal */}
+      <GuestPrompt
+        visible={promptVisible}
+        onClose={handleClose}
+        onSignUp={handleSignUp}
+        onSignIn={handleSignIn}
+        feature={promptFeature}
       />
     </SafeAreaView>
   );

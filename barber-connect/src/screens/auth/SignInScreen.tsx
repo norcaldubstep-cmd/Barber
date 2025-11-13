@@ -19,12 +19,13 @@ import { signIn as authSignIn } from '../../services/authService';
 import { Alert } from 'react-native';
 
 export const SignInScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const { signIn } = useAuthStore();
+  const { signIn, continueAsGuest } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [isGuestLoading, setIsGuestLoading] = useState(false);
 
   const validateForm = (): boolean => {
     const newErrors: { email?: string; password?: string } = {};
@@ -61,6 +62,18 @@ export const SignInScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       Alert.alert('Sign In Failed', errorMessage);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleContinueAsGuest = async () => {
+    setIsGuestLoading(true);
+    try {
+      await continueAsGuest();
+      // Navigation is handled by root navigator based on isGuest state
+    } catch (error: any) {
+      Alert.alert('Error', 'Failed to continue as guest. Please try again.');
+    } finally {
+      setIsGuestLoading(false);
     }
   };
 
@@ -168,6 +181,23 @@ export const SignInScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 style={{ marginTop: spacing.md }}
               />
 
+              <View style={styles.guestSection}>
+                <TouchableOpacity
+                  onPress={handleContinueAsGuest}
+                  style={styles.guestButton}
+                  disabled={isGuestLoading}
+                >
+                  <Ionicons name="eye-outline" size={20} color={colors.accent.gold} />
+                  <Text style={styles.guestButtonText}>
+                    {isGuestLoading ? 'Loading...' : 'Continue as Guest'}
+                  </Text>
+                  <Ionicons name="arrow-forward" size={20} color={colors.accent.gold} />
+                </TouchableOpacity>
+                <Text style={styles.guestDescription}>
+                  Browse barbers without signing up
+                </Text>
+              </View>
+
               <TouchableOpacity
                 onPress={() => navigation.navigate('RoleSelection')}
                 style={styles.signUpLink}
@@ -213,7 +243,36 @@ const styles = StyleSheet.create({
   divider: { flexDirection: 'row', alignItems: 'center', marginVertical: spacing.xl },
   dividerLine: { flex: 1, height: 1, backgroundColor: colors.border.medium },
   dividerText: { ...textStyles.bodySmall, color: colors.text.secondary, marginHorizontal: spacing.md },
-  signUpLink: { alignItems: 'center', marginTop: spacing.xl },
+  guestSection: {
+    alignItems: 'center',
+    marginTop: spacing.xl,
+    paddingVertical: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.border.medium,
+  },
+  guestButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.accent.gold + '40',
+    backgroundColor: colors.accent.gold + '10',
+  },
+  guestButtonText: {
+    ...textStyles.body,
+    color: colors.accent.gold,
+    fontWeight: '600',
+  },
+  guestDescription: {
+    ...textStyles.caption,
+    color: colors.text.tertiary,
+    marginTop: spacing.sm,
+    textAlign: 'center',
+  },
+  signUpLink: { alignItems: 'center', marginTop: spacing.lg },
   signUpText: { ...textStyles.body, color: colors.text.secondary },
   signUpTextBold: { color: colors.accent.gold, fontWeight: '700' },
 });

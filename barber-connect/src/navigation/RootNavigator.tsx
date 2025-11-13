@@ -12,7 +12,7 @@ import { colors, spacing } from '../theme';
 const Stack = createNativeStackNavigator();
 
 export const RootNavigator = React.forwardRef<any, {}>((props, ref) => {
-  const { isAuthenticated, isLoading, loadStoredAuth } = useAuthStore();
+  const { isAuthenticated, isGuest, isLoading, loadStoredAuth } = useAuthStore();
 
   useEffect(() => {
     loadStoredAuth();
@@ -42,7 +42,7 @@ export const RootNavigator = React.forwardRef<any, {}>((props, ref) => {
   return (
     <NavigationContainer ref={ref}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {isAuthenticated ? (
+        {isAuthenticated || isGuest ? (
           <Stack.Screen name="Main" component={MainNavigator} />
         ) : (
           <Stack.Screen name="Auth" component={AuthNavigator} />
