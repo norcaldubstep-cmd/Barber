@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Avatar } from '../../components/common/Avatar';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
+import { LocationSearchModal } from '../../components/common/LocationSearchModal';
 import { colors, spacing, borderRadius, textStyles, shadows } from '../../theme';
 import { BarberProfile, BarberSearchFilters, SPECIALTIES } from '../../types/barber.types';
 import { DISTANCE_OPTIONS } from '../../types/location.types';
@@ -23,7 +24,7 @@ import { PROMOTION_PLANS, PromotionTier } from '../../types/promotion.types';
 import { calculateDistance, formatDistance } from '../../utils/location.utils';
 import { searchBarbers, getNearbyBarbers, getTopRatedBarbers } from '../../services/barberService';
 import { useAuthStore } from '../../store/authStore';
-import { getLocationOrDefault, getLocationStatusMessage, checkLocationPermission } from '../../services/locationService';
+import { getLocationOrDefault, getLocationStatusMessage, checkLocationPermission, LocationCoords, reverseGeocodeLocation } from '../../services/locationService';
 
 export const DiscoverScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
@@ -31,9 +32,11 @@ export const DiscoverScreen = ({ navigation }: any) => {
   const [barbers, setBarbers] = useState<BarberProfile[]>([]);
   const [filteredBarbers, setFilteredBarbers] = useState<BarberProfile[]>([]);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locationName, setLocationName] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [showLocationSearch, setShowLocationSearch] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [locationStatus, setLocationStatus] = useState<string>('');
 
@@ -74,6 +77,10 @@ export const DiscoverScreen = ({ navigation }: any) => {
       const location = await getLocationOrDefault(forceRefresh);
       setUserLocation(location);
 
+      // Get location name
+      const name = await reverseGeocodeLocation(location.latitude, location.longitude);
+      setLocationName(name || 'Current Location');
+
       // Get status message for UI
       const status = await getLocationStatusMessage();
       setLocationStatus(status);
@@ -82,7 +89,15 @@ export const DiscoverScreen = ({ navigation }: any) => {
       // Even if there's an error, getLocationOrDefault should return default location
       const location = await getLocationOrDefault();
       setUserLocation(location);
+      setLocationName('Current Location');
     }
+  };
+
+  const handleSelectLocation = async (location: LocationCoords, name: string) => {
+    setUserLocation(location);
+    setLocationName(name);
+    // Immediately reload barbers with new location
+    await loadBarbers();
   };
 
   const loadBarbers = async () => {
@@ -300,13 +315,21 @@ export const DiscoverScreen = ({ navigation }: any) => {
 
       {/* Location Bar */}
       {userLocation && (
-        <TouchableOpacity style={styles.locationBar} onPress={() => loadLocation(true)}>
-          <Ionicons name="location" size={16} color={colors.accent.gold} />
-          <Text style={styles.locationText}>
-            {filters.maxDistance ? `Within ${filters.maxDistance} miles` : 'Any distance'}
-          </Text>
-          <Ionicons name="refresh" size={16} color={colors.text.secondary} />
-        </TouchableOpacity>
+        <View style={styles.locationBarContainer}>
+          <TouchableOpacity
+            style={styles.locationBar}
+            onPress={() => setShowLocationSearch(true)}
+          >
+            <Ionicons name="location" size={16} color={colors.accent.gold} />
+            <Text style={styles.locationText} numberOfLines={1}>
+              {locationName || 'Current Location'}
+            </Text>
+            <Ionicons name="chevron-down" size={16} color={colors.text.secondary} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.refreshButton} onPress={() => loadLocation(true)}>
+            <Ionicons name="refresh" size={16} color={colors.text.secondary} />
+          </TouchableOpacity>
+        </View>
       )}
 
       {/* Filters */}
@@ -416,6 +439,14 @@ export const DiscoverScreen = ({ navigation }: any) => {
           </View>
         }
       />
+
+      {/* Location Search Modal */}
+      <LocationSearchModal
+        visible={showLocationSearch}
+        onClose={() => setShowLocationSearch(false)}
+        onSelectLocation={handleSelectLocation}
+        currentLocation={userLocation}
+      />
     </SafeAreaView>
   );
 };
@@ -474,20 +505,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  locationBar: {
+  locationBarContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.sm,
-    gap: spacing.xs,
     backgroundColor: colors.background.secondary,
     borderBottomWidth: 1,
     borderBottomColor: colors.border.light,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  locationBar: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   locationText: {
+    flex: 1,
     ...textStyles.bodySmall,
     color: colors.text.secondary,
     fontWeight: '600',
+  },
+  refreshButton: {
+    padding: spacing.xs,
+    marginLeft: spacing.xs,
   },
   filtersPanel: {
     backgroundColor: colors.background.secondary,

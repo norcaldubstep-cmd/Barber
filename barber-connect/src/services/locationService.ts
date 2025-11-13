@@ -234,6 +234,92 @@ export const getLocationStatusMessage = async (): Promise<string> => {
   return 'Location permission needed to find nearby barbers';
 };
 
+/**
+ * Geocode a location name (city, address) to coordinates
+ * Uses Expo Location's geocoding API
+ * @param locationName - City name, address, or location query
+ * @returns Promise<LocationCoords | null> - coordinates or null if not found
+ */
+export const geocodeLocation = async (locationName: string): Promise<LocationCoords | null> => {
+  try {
+    if (!locationName || locationName.trim().length === 0) {
+      return null;
+    }
+
+    const results = await Location.geocodeAsync(locationName);
+
+    if (results && results.length > 0) {
+      const { latitude, longitude } = results[0];
+      return { latitude, longitude };
+    }
+
+    return null;
+  } catch (error) {
+    // console.error('Error geocoding location:', error);
+    return null;
+  }
+};
+
+/**
+ * Reverse geocode coordinates to get location name
+ * @param latitude - latitude coordinate
+ * @param longitude - longitude coordinate
+ * @returns Promise<string | null> - location name or null if not found
+ */
+export const reverseGeocodeLocation = async (
+  latitude: number,
+  longitude: number
+): Promise<string | null> => {
+  try {
+    const results = await Location.reverseGeocodeAsync({ latitude, longitude });
+
+    if (results && results.length > 0) {
+      const { city, region, country } = results[0];
+      // Format: "City, State" or "City, Country"
+      if (city && region) {
+        return `${city}, ${region}`;
+      } else if (city && country) {
+        return `${city}, ${country}`;
+      } else if (region && country) {
+        return `${region}, ${country}`;
+      }
+      return city || region || country || null;
+    }
+
+    return null;
+  } catch (error) {
+    // console.error('Error reverse geocoding location:', error);
+    return null;
+  }
+};
+
+/**
+ * Popular cities with pre-defined coordinates
+ * Useful for quick city selection
+ */
+export const POPULAR_CITIES = [
+  { name: 'Los Angeles, CA', latitude: 34.0522, longitude: -118.2437 },
+  { name: 'New York, NY', latitude: 40.7128, longitude: -74.0060 },
+  { name: 'Chicago, IL', latitude: 41.8781, longitude: -87.6298 },
+  { name: 'Houston, TX', latitude: 29.7604, longitude: -95.3698 },
+  { name: 'Phoenix, AZ', latitude: 33.4484, longitude: -112.0740 },
+  { name: 'Philadelphia, PA', latitude: 39.9526, longitude: -75.1652 },
+  { name: 'San Antonio, TX', latitude: 29.4241, longitude: -98.4936 },
+  { name: 'San Diego, CA', latitude: 32.7157, longitude: -117.1611 },
+  { name: 'Dallas, TX', latitude: 32.7767, longitude: -96.7970 },
+  { name: 'San Jose, CA', latitude: 37.3382, longitude: -121.8863 },
+  { name: 'Austin, TX', latitude: 30.2672, longitude: -97.7431 },
+  { name: 'San Francisco, CA', latitude: 37.7749, longitude: -122.4194 },
+  { name: 'Miami, FL', latitude: 25.7617, longitude: -80.1918 },
+  { name: 'Atlanta, GA', latitude: 33.7490, longitude: -84.3880 },
+  { name: 'Boston, MA', latitude: 42.3601, longitude: -71.0589 },
+  { name: 'Seattle, WA', latitude: 47.6062, longitude: -122.3321 },
+  { name: 'Denver, CO', latitude: 39.7392, longitude: -104.9903 },
+  { name: 'Las Vegas, NV', latitude: 36.1699, longitude: -115.1398 },
+  { name: 'Portland, OR', latitude: 45.5152, longitude: -122.6784 },
+  { name: 'Nashville, TN', latitude: 36.1627, longitude: -86.7816 },
+];
+
 export default {
   requestLocationPermission,
   checkLocationPermission,
@@ -244,5 +330,8 @@ export default {
   getLocationOrDefault,
   isLocationEnabled,
   getLocationStatusMessage,
+  geocodeLocation,
+  reverseGeocodeLocation,
   DEFAULT_LOCATION,
+  POPULAR_CITIES,
 };
