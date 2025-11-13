@@ -15,7 +15,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { db, storage } from './firebase';
+import { db, storage, auth } from './firebase';
 import { BarberProfile, BarberSearchFilters } from '../types/barber.types';
 import { Service } from '../types/booking.types';
 
@@ -46,6 +46,16 @@ export const updateBarberProfile = async (
   updates: Partial<BarberProfile>
 ): Promise<void> => {
   try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('Unauthorized: User must be authenticated');
+    }
+
+    // Verify user is the barber
+    if (currentUser.uid !== barberId) {
+      throw new Error('Unauthorized: You can only update your own profile');
+    }
+
     const barberRef = doc(db, 'barbers', barberId);
     await updateDoc(barberRef, {
       ...updates,
@@ -53,7 +63,7 @@ export const updateBarberProfile = async (
     });
   } catch (error) {
     // console.error('Update barber profile error:', error);
-    throw new Error('Failed to update barber profile');
+    throw error;
   }
 };
 
@@ -63,6 +73,16 @@ export const uploadBarberProfileImage = async (
   imageUri: string
 ): Promise<string> => {
   try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('Unauthorized: User must be authenticated');
+    }
+
+    // Verify user is the barber
+    if (currentUser.uid !== barberId) {
+      throw new Error('Unauthorized: You can only upload your own profile image');
+    }
+
     const response = await fetch(imageUri);
     const blob = await response.blob();
     const filename = `barbers/${barberId}/profile_${Date.now()}.jpg`;
@@ -79,7 +99,7 @@ export const uploadBarberProfileImage = async (
     return downloadURL;
   } catch (error) {
     // console.error('Upload profile image error:', error);
-    throw new Error('Failed to upload profile image');
+    throw error;
   }
 };
 
@@ -89,6 +109,16 @@ export const uploadBarberCoverImage = async (
   imageUri: string
 ): Promise<string> => {
   try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('Unauthorized: User must be authenticated');
+    }
+
+    // Verify user is the barber
+    if (currentUser.uid !== barberId) {
+      throw new Error('Unauthorized: You can only upload your own cover image');
+    }
+
     const response = await fetch(imageUri);
     const blob = await response.blob();
     const filename = `barbers/${barberId}/cover_${Date.now()}.jpg`;
@@ -104,7 +134,7 @@ export const uploadBarberCoverImage = async (
     return downloadURL;
   } catch (error) {
     // console.error('Upload cover image error:', error);
-    throw new Error('Failed to upload cover image');
+    throw error;
   }
 };
 
@@ -114,6 +144,16 @@ export const uploadPortfolioImage = async (
   imageUri: string
 ): Promise<string> => {
   try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('Unauthorized: User must be authenticated');
+    }
+
+    // Verify user is the barber
+    if (currentUser.uid !== barberId) {
+      throw new Error('Unauthorized: You can only upload to your own portfolio');
+    }
+
     const response = await fetch(imageUri);
     const blob = await response.blob();
     const filename = `barbers/${barberId}/portfolio/${Date.now()}.jpg`;
@@ -133,7 +173,7 @@ export const uploadPortfolioImage = async (
     return downloadURL;
   } catch (error) {
     // console.error('Upload portfolio image error:', error);
-    throw new Error('Failed to upload portfolio image');
+    throw error;
   }
 };
 
@@ -143,6 +183,16 @@ export const deletePortfolioImage = async (
   imageUrl: string
 ): Promise<void> => {
   try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('Unauthorized: User must be authenticated');
+    }
+
+    // Verify user is the barber
+    if (currentUser.uid !== barberId) {
+      throw new Error('Unauthorized: You can only delete from your own portfolio');
+    }
+
     // Delete from storage
     const imageRef = ref(storage, imageUrl);
     await deleteObject(imageRef);
@@ -157,7 +207,7 @@ export const deletePortfolioImage = async (
     });
   } catch (error) {
     // console.error('Delete portfolio image error:', error);
-    throw new Error('Failed to delete portfolio image');
+    throw error;
   }
 };
 
@@ -167,12 +217,22 @@ export const updateBarberServices = async (
   services: Service[]
 ): Promise<void> => {
   try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('Unauthorized: User must be authenticated');
+    }
+
+    // Verify user is the barber
+    if (currentUser.uid !== barberId) {
+      throw new Error('Unauthorized: You can only update your own services');
+    }
+
     await updateDoc(doc(db, 'barbers', barberId), {
       services,
     });
   } catch (error) {
     // console.error('Update services error:', error);
-    throw new Error('Failed to update services');
+    throw error;
   }
 };
 
@@ -505,6 +565,16 @@ export const updateBarberAvailability = async (
   availability: any
 ): Promise<void> => {
   try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('Unauthorized: User must be authenticated');
+    }
+
+    // Verify user is the barber
+    if (currentUser.uid !== barberId) {
+      throw new Error('Unauthorized: You can only update your own availability');
+    }
+
     await setDoc(doc(db, 'barberAvailability', barberId), {
       ...availability,
       barberId,
@@ -512,7 +582,7 @@ export const updateBarberAvailability = async (
     }, { merge: true });
   } catch (error) {
     // console.error('Update barber availability error:', error);
-    throw new Error('Failed to update availability');
+    throw error;
   }
 };
 

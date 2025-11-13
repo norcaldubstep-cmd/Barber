@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { User } from '../types/user.types';
 import { logOut } from '../services/authService';
 
@@ -20,8 +20,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   isLoading: true,
 
   signIn: async (user, accessToken) => {
-    await AsyncStorage.setItem('@user', JSON.stringify(user));
-    await AsyncStorage.setItem('@token', accessToken);
+    // Use SecureStore for encrypted storage of sensitive data
+    await SecureStore.setItemAsync('user', JSON.stringify(user));
+    await SecureStore.setItemAsync('token', accessToken);
     set({ user, accessToken, isAuthenticated: true, isLoading: false });
   },
 
@@ -33,15 +34,16 @@ export const useAuthStore = create<AuthState>((set) => ({
       // console.error('Firebase logout error:', error);
       // Continue with local signout even if Firebase fails
     }
-    // Clear local storage
-    await AsyncStorage.multiRemove(['@user', '@token']);
+    // Clear secure storage
+    await SecureStore.deleteItemAsync('user');
+    await SecureStore.deleteItemAsync('token');
     set({ user: null, accessToken: null, isAuthenticated: false });
   },
 
   loadStoredAuth: async () => {
     try {
-      const user = await AsyncStorage.getItem('@user');
-      const token = await AsyncStorage.getItem('@token');
+      const user = await SecureStore.getItemAsync('user');
+      const token = await SecureStore.getItemAsync('token');
       if (user && token) {
         set({ user: JSON.parse(user), accessToken: token, isAuthenticated: true, isLoading: false });
       } else {

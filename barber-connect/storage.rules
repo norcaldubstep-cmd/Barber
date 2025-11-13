@@ -37,8 +37,10 @@ service firebase.storage {
 
     // Message media (images sent in chat)
     match /messages/{conversationId}/{allPaths=**} {
-      allow read: if isSignedIn(); // Authenticated users can read
-      allow write: if isSignedIn(); // Authenticated users can send images
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() &&
+                     request.resource.size < 10 * 1024 * 1024 && // 10MB max for message images
+                     request.resource.contentType.matches('image/.*'); // Only images
     }
 
     // Review images
@@ -47,11 +49,11 @@ service firebase.storage {
       allow write: if isSignedIn();
     }
 
-    // General size limits (5MB for images, 50MB for videos)
+    // General size limits (10MB for images, 25MB for videos)
     match /{allPaths=**} {
       allow read: if isSignedIn();
       allow write: if isSignedIn() &&
-                     request.resource.size < 50 * 1024 * 1024 && // 50MB max
+                     request.resource.size < 25 * 1024 * 1024 && // 25MB max
                      request.resource.contentType.matches('image/.*|video/.*');
     }
   }

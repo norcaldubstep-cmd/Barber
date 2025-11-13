@@ -109,7 +109,9 @@ service cloud.firestore {
         request.auth.uid == resource.data.senderId ||
         request.auth.uid == resource.data.receiverId
       );
-      allow create: if isSignedIn() && isOwner(request.resource.data.senderId);
+      allow create: if isSignedIn() &&
+                      isOwner(request.resource.data.senderId) &&
+                      (request.resource.data.content.size() <= 1000); // Max 1000 chars
       allow update: if isSignedIn() && (
         request.auth.uid == resource.data.senderId ||
         request.auth.uid == resource.data.receiverId
@@ -120,7 +122,7 @@ service cloud.firestore {
     // Notifications collection
     match /notifications/{notificationId} {
       allow read: if isOwner(resource.data.userId);
-      allow create: if isSignedIn(); // Any user can create notifications
+      allow create: if isSignedIn() && isOwner(request.resource.data.senderId); // Only sender can create
       allow update: if isOwner(resource.data.userId);
       allow delete: if isOwner(resource.data.userId);
     }

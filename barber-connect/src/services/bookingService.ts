@@ -14,7 +14,7 @@ import {
   serverTimestamp,
   increment,
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, auth } from './firebase';
 import {
   Booking,
   BookingStatus,
@@ -203,33 +203,81 @@ export const updateBookingStatus = async (
   status: BookingStatus
 ): Promise<void> => {
   try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('Unauthorized: User must be authenticated');
+    }
+
+    // Get booking to verify ownership
+    const booking = await getBookingById(bookingId);
+    if (!booking) {
+      throw new Error('Booking not found');
+    }
+
+    // Verify user is either the client or barber
+    if (currentUser.uid !== booking.clientId && currentUser.uid !== booking.barberId) {
+      throw new Error('Unauthorized: You do not have permission to update this booking');
+    }
+
     await updateDoc(doc(db, 'bookings', bookingId), {
       status,
       updatedAt: serverTimestamp(),
     });
   } catch (error) {
     // console.error('Update booking status error:', error);
-    throw new Error('Failed to update booking status');
+    throw error;
   }
 };
 
 // Cancel booking
 export const cancelBooking = async (bookingId: string): Promise<void> => {
   try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('Unauthorized: User must be authenticated');
+    }
+
+    // Get booking to verify ownership
+    const booking = await getBookingById(bookingId);
+    if (!booking) {
+      throw new Error('Booking not found');
+    }
+
+    // Verify user is either the client or barber
+    if (currentUser.uid !== booking.clientId && currentUser.uid !== booking.barberId) {
+      throw new Error('Unauthorized: You do not have permission to cancel this booking');
+    }
+
     await updateBookingStatus(bookingId, BookingStatus.CANCELLED);
   } catch (error) {
     // console.error('Cancel booking error:', error);
-    throw new Error('Failed to cancel booking');
+    throw error;
   }
 };
 
 // Delete booking (admin only)
 export const deleteBooking = async (bookingId: string): Promise<void> => {
   try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('Unauthorized: User must be authenticated');
+    }
+
+    // Get booking to verify ownership
+    const booking = await getBookingById(bookingId);
+    if (!booking) {
+      throw new Error('Booking not found');
+    }
+
+    // Only the client who created the booking can delete it
+    if (currentUser.uid !== booking.clientId) {
+      throw new Error('Unauthorized: Only the client can delete this booking');
+    }
+
     await deleteDoc(doc(db, 'bookings', bookingId));
   } catch (error) {
     // console.error('Delete booking error:', error);
-    throw new Error('Failed to delete booking');
+    throw error;
   }
 };
 
@@ -362,6 +410,16 @@ export const setBarberAvailability = async (
   advanceBookingDays: number = 30
 ): Promise<void> => {
   try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('Unauthorized: User must be authenticated');
+    }
+
+    // Verify user is the barber
+    if (currentUser.uid !== barberId) {
+      throw new Error('Unauthorized: You can only set your own availability');
+    }
+
     const availabilityData: BarberAvailability = {
       barberId,
       weekSchedule,
@@ -374,7 +432,7 @@ export const setBarberAvailability = async (
     await setDoc(doc(db, 'barberAvailability', barberId), availabilityData);
   } catch (error) {
     // console.error('Set barber availability error:', error);
-    throw new Error('Failed to set barber availability');
+    throw error;
   }
 };
 

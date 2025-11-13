@@ -46,8 +46,8 @@ export const ChangePasswordScreen = ({ navigation }: any) => {
     if (!newPassword.trim()) {
       newErrors.newPassword = 'New password is required';
       isValid = false;
-    } else if (newPassword.length < 6) {
-      newErrors.newPassword = 'Password must be at least 6 characters';
+    } else if (newPassword.length < 8) {
+      newErrors.newPassword = 'Password must be at least 8 characters';
       isValid = false;
     }
 

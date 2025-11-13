@@ -385,6 +385,16 @@ export const getUserFavorites = async (userId: string): Promise<string[]> => {
 // Add barber to favorites
 export const addFavorite = async (userId: string, barberId: string): Promise<void> => {
   try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('Unauthorized: User must be authenticated');
+    }
+
+    // Verify user is adding to their own favorites
+    if (currentUser.uid !== userId) {
+      throw new Error('Unauthorized: You can only add to your own favorites');
+    }
+
     await addDoc(collection(db, 'favorites'), {
       userId,
       barberId,
@@ -392,13 +402,23 @@ export const addFavorite = async (userId: string, barberId: string): Promise<voi
     });
   } catch (error) {
     // console.error('Error adding favorite:', error);
-    throw new Error('Failed to add favorite');
+    throw error;
   }
 };
 
 // Remove barber from favorites
 export const removeFavorite = async (userId: string, barberId: string): Promise<void> => {
   try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('Unauthorized: User must be authenticated');
+    }
+
+    // Verify user is removing from their own favorites
+    if (currentUser.uid !== userId) {
+      throw new Error('Unauthorized: You can only remove from your own favorites');
+    }
+
     const favoritesQuery = query(
       collection(db, 'favorites'),
       where('userId', '==', userId),
@@ -412,7 +432,7 @@ export const removeFavorite = async (userId: string, barberId: string): Promise<
     await Promise.all(deletePromises);
   } catch (error) {
     // console.error('Error removing favorite:', error);
-    throw new Error('Failed to remove favorite');
+    throw error;
   }
 };
 
@@ -422,6 +442,16 @@ export const getUser = getUserById;
 // Update user profile
 export const updateUser = async (userId: string, updates: Partial<User>): Promise<void> => {
   try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('Unauthorized: User must be authenticated');
+    }
+
+    // Verify user is updating their own profile
+    if (currentUser.uid !== userId) {
+      throw new Error('Unauthorized: You can only update your own profile');
+    }
+
     const userRef = doc(db, 'users', userId);
     await updateDoc(userRef, {
       ...updates,
@@ -429,6 +459,6 @@ export const updateUser = async (userId: string, updates: Partial<User>): Promis
     } as any);
   } catch (error) {
     // console.error('Error updating user:', error);
-    throw new Error('Failed to update user');
+    throw error;
   }
 };
