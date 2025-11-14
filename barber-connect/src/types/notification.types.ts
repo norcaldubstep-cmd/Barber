@@ -1,5 +1,7 @@
 export enum NotificationType {
-  BOOKING_CONFIRMED = 'BOOKING_CONFIRMED',
+  BOOKING_REQUESTED = 'BOOKING_REQUESTED', // New booking request for barber
+  BOOKING_CONFIRMED = 'BOOKING_CONFIRMED', // Booking approved/confirmed
+  BOOKING_DENIED = 'BOOKING_DENIED', // Booking denied by barber
   BOOKING_CANCELLED = 'BOOKING_CANCELLED',
   BOOKING_REMINDER = 'BOOKING_REMINDER',
   NEW_MESSAGE = 'NEW_MESSAGE',

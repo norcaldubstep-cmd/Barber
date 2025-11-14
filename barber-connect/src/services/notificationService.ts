@@ -467,6 +467,114 @@ export const notifyBookingReminder = async (
   });
 };
 
+export const notifyBookingRequested = async (
+  barberId: string,
+  bookingId: string,
+  clientId: string,
+  clientName: string,
+  clientAvatar: string | undefined,
+  serviceName: string,
+  date: string,
+  time: string
+): Promise<void> => {
+  const title = 'New Booking Request';
+  const message = `${clientName} requested ${serviceName} on ${date} at ${time}`;
+
+  await createNotification(
+    barberId,
+    NotificationType.BOOKING_REQUESTED,
+    title,
+    message,
+    {
+      bookingId,
+      senderId: clientId,
+      senderName: clientName,
+      senderAvatar: clientAvatar,
+      actionUrl: `/bookings`,
+    }
+  );
+
+  // Send push notification
+  await sendPushNotification(barberId, title, message, {
+    type: 'BOOKING_REQUESTED',
+    bookingId,
+    clientId,
+    clientName,
+  });
+};
+
+export const notifyBookingApproved = async (
+  clientId: string,
+  bookingId: string,
+  barberId: string,
+  barberName: string,
+  barberAvatar: string | undefined,
+  date: string,
+  time: string
+): Promise<void> => {
+  const title = 'Booking Approved!';
+  const message = `${barberName} approved your appointment on ${date} at ${time}`;
+
+  await createNotification(
+    clientId,
+    NotificationType.BOOKING_CONFIRMED,
+    title,
+    message,
+    {
+      bookingId,
+      senderId: barberId,
+      senderName: barberName,
+      senderAvatar: barberAvatar,
+      actionUrl: `/booking/${bookingId}`,
+    }
+  );
+
+  // Send push notification
+  await sendPushNotification(clientId, title, message, {
+    type: 'BOOKING_CONFIRMED',
+    bookingId,
+    barberId,
+    barberName,
+  });
+};
+
+export const notifyBookingDenied = async (
+  clientId: string,
+  bookingId: string,
+  barberId: string,
+  barberName: string,
+  barberAvatar: string | undefined,
+  reason?: string
+): Promise<void> => {
+  const title = 'Booking Request Declined';
+  const message = reason
+    ? `${barberName} declined your booking request. Reason: ${reason}`
+    : `${barberName} declined your booking request`;
+
+  await createNotification(
+    clientId,
+    NotificationType.BOOKING_DENIED,
+    title,
+    message,
+    {
+      bookingId,
+      senderId: barberId,
+      senderName: barberName,
+      senderAvatar: barberAvatar,
+      actionUrl: `/bookings`,
+    }
+  );
+
+  // Send push notification
+  await sendPushNotification(clientId, title, message, {
+    type: 'BOOKING_DENIED',
+    bookingId,
+    barberId,
+    barberName,
+    reason,
+  });
+};
+
 export const notifyNewMessage = async (
   userId: string,
   senderId: string,

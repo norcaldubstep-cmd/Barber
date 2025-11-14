@@ -23,6 +23,12 @@ import {
   AvailableDate,
 } from '../types/booking.types';
 import { BarberAvailability, WeekSchedule } from '../types/schedule.types';
+import {
+  notifyBookingRequested,
+  notifyBookingApproved,
+  notifyBookingDenied,
+  notifyBookingCancelled,
+} from './notificationService';
 
 /**
  * Booking Service
@@ -82,6 +88,23 @@ export const createBooking = async (
     await updateDoc(doc(db, 'barbers', barberId), {
       totalClients: increment(1),
     });
+
+    // Notify barber about new booking request
+    try {
+      await notifyBookingRequested(
+        barberId,
+        bookingData.id,
+        clientId,
+        clientName,
+        clientAvatar,
+        services[0].name,
+        date,
+        startTime
+      );
+    } catch (notifError) {
+      // console.error('Error sending booking notification:', notifError);
+      // Don't fail the booking if notification fails
+    }
 
     return bookingData;
   } catch (error) {
@@ -249,6 +272,18 @@ export const cancelBooking = async (bookingId: string): Promise<void> => {
     }
 
     await updateBookingStatus(bookingId, BookingStatus.CANCELLED);
+
+    // Notify the other party about the cancellation
+    try {
+      const isClient = currentUser.uid === booking.clientId;
+      const recipientId = isClient ? booking.barberId : booking.clientId;
+      const cancellerName = isClient ? booking.clientName : booking.barberName;
+
+      await notifyBookingCancelled(recipientId, bookingId, cancellerName);
+    } catch (notifError) {
+      // console.error('Error sending cancellation notification:', notifError);
+      // Don't fail the cancellation if notification fails
+    }
   } catch (error) {
     // console.error('Cancel booking error:', error);
     throw error;
@@ -280,6 +315,22 @@ export const approveBooking = async (bookingId: string): Promise<void> => {
     }
 
     await updateBookingStatus(bookingId, BookingStatus.CONFIRMED);
+
+    // Notify client that booking was approved
+    try {
+      await notifyBookingApproved(
+        booking.clientId,
+        bookingId,
+        booking.barberId,
+        booking.barberName,
+        booking.barberAvatar,
+        booking.date,
+        booking.startTime
+      );
+    } catch (notifError) {
+      // console.error('Error sending approval notification:', notifError);
+      // Don't fail the approval if notification fails
+    }
   } catch (error) {
     // console.error('Approve booking error:', error);
     throw error;
@@ -316,6 +367,21 @@ export const denyBooking = async (bookingId: string, reason?: string): Promise<v
       denialReason: reason,
       updatedAt: serverTimestamp(),
     });
+
+    // Notify client that booking was denied
+    try {
+      await notifyBookingDenied(
+        booking.clientId,
+        bookingId,
+        booking.barberId,
+        booking.barberName,
+        booking.barberAvatar,
+        reason
+      );
+    } catch (notifError) {
+      // console.error('Error sending denial notification:', notifError);
+      // Don't fail the denial if notification fails
+    }
   } catch (error) {
     // console.error('Deny booking error:', error);
     throw error;
